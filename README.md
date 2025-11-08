@@ -147,15 +147,70 @@ npx tsc --noEmit       # Check for TypeScript errors without emitting
 - **CVA** - Component variant system
 - **Decimal.js** - Precise number handling for financial data
 
-## Environment Variables
+## Environment Variables & Configuration
 
-Create a `.env.local` file based on `.env.local.example`:
+Create a `.env.local` file based on `.env.example`:
 
 ```env
-DATABASE_URL="postgresql://user:password@localhost:5432/nextjs_app"
-NEXT_PUBLIC_API_URL="http://localhost:3000"
+# Database Configuration
+DATABASE_URL="postgresql://user:password@localhost:5432/website_monitor?schema=website_manager"
+
+# Application Configuration
+NEXT_PUBLIC_API_URL="http://localhost:3030"
 NODE_ENV="development"
+
+# Proxy Configuration (optional, for accessing Google APIs through corporate proxy)
+HTTP_PROXY="http://localhost:7890"
+HTTPS_PROXY="http://localhost:7890"
 ```
+
+### Google Analytics (GA) Configuration
+
+1. **Create a Google Cloud Service Account**:
+   - Go to [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new service account with "Editor" role
+   - Download the service account key as JSON
+
+2. **Save the key file**:
+   - Name it `google-cloud-acount.json` (note the typo - it matches the code)
+   - Or name it `google-cloud-account.json` (the code checks both)
+   - Place it in the project root directory
+   - It will be automatically ignored by git (see `.gitignore`)
+
+3. **Enable required APIs**:
+   - Enable "Google Analytics Data API" in your Google Cloud project
+   - Enable "Google Analytics Reporting API"
+
+4. **Add GA Property ID**:
+   - Go to [Google Analytics](https://analytics.google.com/)
+   - Find your Property ID (looks like: 123456789)
+   - You can configure properties/sites through the application UI
+
+### Google Search Console (GSC) Configuration
+
+1. **Use the same service account**:
+   - The application uses the same `google-cloud-acount.json` file
+   - Or use `gsc-mcp-service-account.json` for MCP integration
+
+2. **Grant Search Console access**:
+   - Go to [Google Search Console](https://search.google.com/search-console)
+   - Add the service account email (from the JSON file) as a property owner
+   - This grants the service account permission to access your search data
+
+3. **Verify site ownership**:
+   - Add your website properties in Google Search Console
+   - The service account needs access to each property you want to monitor
+
+### File Locations
+
+```
+project-root/
+├── google-cloud-acount.json          # GA & GSC service account key
+├── gsc-mcp-service-account.json      # Alternative GSC key for MCP
+└── .env.local                        # Environment variables (ignored by git)
+```
+
+**Note**: Service account key files are automatically ignored by git and should never be committed.
 
 ## Database Setup
 
