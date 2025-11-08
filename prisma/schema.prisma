@@ -1,0 +1,335 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["public", "website_manager"]
+}
+
+// ============================================================================
+// 基础表
+// ============================================================================
+
+model Category {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  color     String?  @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  sites Site[]
+
+  @@schema("website_manager")
+  @@map("categories")
+}
+
+model Tag {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @unique
+  color     String?  @db.VarChar(10)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  siteTags SiteTag[]
+
+  @@schema("website_manager")
+  @@map("tags")
+}
+
+// ============================================================================
+// 核心表
+// ============================================================================
+
+model Site {
+  id          String    @id @default(uuid()) @db.Uuid
+  name        String
+  domain      String    @unique
+  categoryId  String?   @map("category_id") @db.Uuid
+  status      String    @default("online") @db.VarChar(20) // online, maintenance, offline
+  platform    String?   @db.VarChar(50) // static, blog, ecommerce, saas, other
+  iconUrl     String?   @map("icon_url")
+  description String?
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  category   Category?        @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  siteTags   SiteTag[]
+  traffic    TrafficData[]
+  evaluations Evaluation[]
+  connectors Connector[]
+  anomalies  TrafficAnomaly[]
+  searchConsoleData SearchConsoleData[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@schema("website_manager")
+  @@map("sites")
+}
+
+model SiteTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  siteId    String   @map("site_id") @db.Uuid
+  tagId     String   @map("tag_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, tagId])
+  @@index([siteId])
+  @@index([tagId])
+  @@schema("website_manager")
+  @@map("site_tags")
+}
+
+// ============================================================================
+// 流量数据表
+// ============================================================================
+
+model TrafficData {
+  id                    String    @id @default(uuid()) @db.Uuid
+  siteId                String    @map("site_id") @db.Uuid
+  date                  DateTime  @db.Date
+  key                   String?   @map("key") @db.VarChar(100) // Readable key: siteName-YYYY-MM-DD
+
+  // 基础指标（来自 GA4 或其他来源）
+  pv                    Int       @default(0)
+  uv                    Int       @default(0)
+  sessions              Int       @default(0)
+
+  // GA4 用户相关指标
+  activeUsers           Int       @default(0) @map("active_users")
+  newUsers              Int       @default(0) @map("new_users")
+
+  // GA4 事件指标
+  events                Int       @default(0)
+
+  // GA4 参与度相关指标
+  bounceRate            Decimal?  @map("bounce_rate") @db.Decimal(5, 2)
+  engagementRate        Decimal?  @map("engagement_rate") @db.Decimal(5, 2)
+  engagedSessions       Int?      @map("engaged_sessions")
+
+  // GA4 时间相关指标
+  avgTimeOnPage         Int?      @map("avg_time_on_page")
+  averageSessionDuration Decimal? @map("average_session_duration") @db.Decimal(10, 2)
+
+  // 页面浏览相关
+  pagesPerSession       Decimal?  @map("pages_per_session") @db.Decimal(5, 2)
+
+  // 转化相关
+  conversions           Int?
+  conversionRate        Decimal?  @map("conversion_rate") @db.Decimal(5, 2)
+
+  // 数据容器：保存完整的 GA4 指标数据
+  metricsData           Json?     @map("metrics_data") @db.JsonB
+
+  // 元数据
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  site       Site                @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  sources    TrafficSource[]
+  devices    TrafficDevice[]
+  pages      TrafficPage[]
+  anomalies  TrafficAnomaly[]
+
+  @@unique([siteId, date])
+  @@index([siteId, date(sort: Desc)])
+  @@index([date(sort: Desc)])
+  @@schema("website_manager")
+  @@map("traffic_data")
+}
+
+model TrafficSource {
+  id        String   @id @default(uuid()) @db.Uuid
+  trafficId String   @map("traffic_id") @db.Uuid
+  source    String?  @db.VarChar(50) // organic, direct, referral, social, paid
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  traffic TrafficData @relation(fields: [trafficId], references: [id], onDelete: Cascade)
+
+  @@index([trafficId])
+  @@schema("website_manager")
+  @@map("traffic_sources")
+}
+
+model TrafficDevice {
+  id        String   @id @default(uuid()) @db.Uuid
+  trafficId String   @map("traffic_id") @db.Uuid
+  device    String?  @db.VarChar(50) // desktop, mobile, tablet
+  count     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  traffic TrafficData @relation(fields: [trafficId], references: [id], onDelete: Cascade)
+
+  @@index([trafficId])
+  @@schema("website_manager")
+  @@map("traffic_devices")
+}
+
+model TrafficPage {
+  id         String   @id @default(uuid()) @db.Uuid
+  trafficId  String   @map("traffic_id") @db.Uuid
+  url        String   @db.VarChar(500)
+  pv         Int      @default(0)
+  uv         Int      @default(0)
+  bounceRate Decimal? @map("bounce_rate") @db.Decimal(5, 2)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  traffic TrafficData @relation(fields: [trafficId], references: [id], onDelete: Cascade)
+
+  @@index([trafficId])
+  @@index([url])
+  @@schema("website_manager")
+  @@map("traffic_pages")
+}
+
+model TrafficAnomaly {
+  id          String    @id @default(uuid()) @db.Uuid
+  siteId      String    @map("site_id") @db.Uuid
+  trafficId   String?   @map("traffic_id") @db.Uuid
+  date        DateTime  @db.Date
+  type        String?   @db.VarChar(50) // flood, drop, pattern_change
+  description String?
+  severity    String    @default("low") @db.VarChar(20) // low, medium, high
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  site    Site         @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  traffic TrafficData? @relation(fields: [trafficId], references: [id], onDelete: SetNull)
+
+  @@unique([siteId, date, type])
+  @@index([siteId, date(sort: Desc)])
+  @@schema("website_manager")
+  @@map("traffic_anomalies")
+}
+
+// ============================================================================
+// Google Search Console 数据表
+// ============================================================================
+
+model SearchConsoleData {
+  id            String   @id @default(uuid()) @db.Uuid
+  siteId        String   @map("site_id") @db.Uuid
+  date          DateTime @db.Date
+
+  // 总体指标
+  totalClicks   Int      @default(0) @map("total_clicks")
+  totalImpressions Int   @default(0) @map("total_impressions")
+  avgCtr        Decimal? @map("avg_ctr") @db.Decimal(5, 2)        // 平均点击率 (%)
+  avgPosition   Decimal? @map("avg_position") @db.Decimal(5, 2)    // 平均排名位置
+
+  // 热门数据（JSON）
+  topQueries    Json?    @map("top_queries") @db.JsonB  // [{query, clicks, impressions, ctr, position}]
+  topPages      Json?    @map("top_pages") @db.JsonB    // [{page, clicks, impressions, ctr, position}]
+  topDevices    Json?    @map("top_devices") @db.JsonB  // [{device, clicks, impressions, ctr}]
+
+  // 元数据
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, date])
+  @@index([siteId, date(sort: Desc)])
+  @@index([date(sort: Desc)])
+  @@schema("website_manager")
+  @@map("search_console_data")
+}
+
+// ============================================================================
+// 评价表
+// ============================================================================
+
+model Evaluation {
+  id             String    @id @default(uuid()) @db.Uuid
+  siteId         String    @map("site_id") @db.Uuid
+  date           DateTime  @default(now()) @db.Date
+  marketScore    Int?      @map("market_score")
+  qualityScore   Int?      @map("quality_score")
+  seoScore       Int?      @map("seo_score")
+  trafficScore   Int?      @map("traffic_score")
+  revenueScore   Int?      @map("revenue_score")
+  overallScore   Decimal?  @map("overall_score") @db.Decimal(5, 2)
+  evaluator      String?   @db.VarChar(255)
+  notes          String?
+  weights        Json?     @db.JsonB
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, date])
+  @@index([siteId, date(sort: Desc)])
+  @@index([overallScore(sort: Desc)])
+  @@schema("website_manager")
+  @@map("evaluations")
+}
+
+// ============================================================================
+// 数据源连接器表
+// ============================================================================
+
+model Connector {
+  id          String    @id @default(uuid()) @db.Uuid
+  siteId      String    @map("site_id") @db.Uuid
+  type        String?   @db.VarChar(50) // Plausible, GoogleAnalytics, Matomo, Custom
+  credentials Json?     @db.JsonB
+  status      String    @default("active") @db.VarChar(20) // active, error, inactive
+  lastSyncAt  DateTime? @map("last_sync_at")
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  site Site @relation(fields: [siteId], references: [id], onDelete: Cascade)
+
+  @@index([siteId])
+  @@index([status])
+  @@schema("website_manager")
+  @@map("connectors")
+}
+
+// ============================================================================
+// 报告表
+// ============================================================================
+
+model Report {
+  id             String    @id @default(uuid()) @db.Uuid
+  title          String    @db.VarChar(255)
+  siteIds        Json?     @map("site_ids") @db.JsonB
+  dateRange      Json?     @map("date_range") @db.JsonB
+  metrics        Json?     @db.JsonB
+  exportFormats  Json?     @map("export_formats") @db.JsonB
+  filePath       String?   @map("file_path")
+  generatedAt    DateTime? @map("generated_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@schema("website_manager")
+  @@map("reports")
+}
+
+// ============================================================================
+// 设置表
+// ============================================================================
+
+model Settings {
+  id               String   @id @db.Uuid
+  scoringWeights   Json?    @map("scoring_weights") @db.JsonB
+  alertThresholds  Json?    @map("alert_thresholds") @db.JsonB
+  themeColor       String?  @map("theme_color") @db.VarChar(10)
+  logoUrl          String?  @map("logo_url")
+  navOrder         Json?    @map("nav_order") @db.JsonB
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@schema("website_manager")
+  @@map("settings")
+}
