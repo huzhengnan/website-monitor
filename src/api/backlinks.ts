@@ -82,3 +82,19 @@ export interface BacklinkSubmissionDetail {
 export async function getBacklinkSubmissions(backlinkSiteId: string): Promise<{ success: boolean; data: BacklinkSubmissionDetail[] }> {
   return client.get(`/backlink-sites/${backlinkSiteId}/submissions`);
 }
+
+export async function importGSCSubmissions(siteId: string, backlinkDomains: Array<{ domain: string; url?: string; indexedDate?: string }>): Promise<{
+  success: boolean;
+  message: string;
+  stats: { created: number; updated: number; failed: number; total: number; errors?: Array<{ domain: string; error: string }> };
+}> {
+  return client.post('/backlink-sites/gsc-import', { siteId, backlinkDomains });
+}
+
+export async function quickImportBacklinks(domains: Array<{ domain: string; url?: string; note?: string }>, siteId?: string): Promise<{
+  success: boolean;
+  message: string;
+  stats: { created: number; updated: number; failed: number; total: number; errors?: Array<{ domain: string; error: string }> };
+}> {
+  return client.post('/backlink-sites/quick-import', { domains, siteId });
+}

@@ -15,6 +15,7 @@ import {
 import { Segmented, FloatButton } from 'antd';
 import { useTheme } from './ThemeContext';
 import { NotificationManager } from './NotificationProvider';
+import BacklinksFooter from './BacklinksFooter';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -105,14 +106,10 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             />
           );
         }}
-        footerRender={() => (
-          <div style={{ textAlign: 'center', color: 'var(--muted-foreground)', padding: '16px 0' }}>
-            网站管理平台 v1.0 © 2024
-          </div>
-        )}
       >
         <div style={{ padding: 16 }}>{children}</div>
       </ProLayout>
+      <BacklinksFooter />
       <FloatButton.BackTop />
     </div>
   );

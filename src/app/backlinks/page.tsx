@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable, ModalForm, ProFormText } from '@ant-design/pro-components';
@@ -8,6 +8,8 @@ import { Button, Tag, Space, Typography, message, Tooltip, Progress, Modal, Tabl
 import { Star, TrendingUp } from 'lucide-react';
 import { createBacklink, importBacklinksFromDocs, listBacklinks, BacklinkSite, deleteBacklink, updateBacklink, getBacklinkSubmissions, BacklinkSubmissionDetail } from '@/api/backlinks';
 import SemrushImportModal from '@/components/SemrushImportModal';
+import GSCImportModal from '@/components/GSCImportModal';
+import QuickImportModal from '@/components/QuickImportModal';
 
 // 获取重要程度标签
 function getImportanceLevel(score: number | null | undefined) {
@@ -28,10 +30,21 @@ function getImportanceLevel(score: number | null | undefined) {
 export default function BacklinksPage() {
   const actionRef = useRef<ActionType | undefined>(undefined);
   const [semrushModalVisible, setSemrushModalVisible] = useState(false);
+  const [gscModalVisible, setGscModalVisible] = useState(false);
+  const [quickImportVisible, setQuickImportVisible] = useState(false);
   const [submissionsModalVisible, setSubmissionsModalVisible] = useState(false);
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [submissionsData, setSubmissionsData] = useState<BacklinkSubmissionDetail[]>([]);
   const [selectedBacklinkDomain, setSelectedBacklinkDomain] = useState<string>('');
+  const [currentSiteId, setCurrentSiteId] = useState<string>('');
+
+  // Load site ID from localStorage on mount
+  useEffect(() => {
+    const savedSiteId = localStorage.getItem('selectedSiteId');
+    if (savedSiteId) {
+      setCurrentSiteId(savedSiteId);
+    }
+  }, []);
 
   const columns: ProColumns<BacklinkSite>[] = [
     {
@@ -117,9 +130,10 @@ export default function BacklinksPage() {
       title: '已提交',
       dataIndex: 'submissionCount',
       width: 80,
-      align: 'center',
+      align: 'center' as const,
       hideInSearch: true,
-      render: (count: number, record: BacklinkSite) => {
+      render: (_, record: BacklinkSite) => {
+        const count = record.submissionCount;
         if (count === undefined || count === null) return <Typography.Text type="secondary">-</Typography.Text>;
         return (
           <a
@@ -317,7 +331,9 @@ export default function BacklinksPage() {
             <ProFormText name="url" label="URL" placeholder="https://…" rules={[{ required: true }]} />
             <ProFormText name="note" label="备注" placeholder="可选" />
           </ModalForm>,
+          <Button key="quick" onClick={() => setQuickImportVisible(true)}>⚡ 快速导入</Button>,
           <Button key="semrush" onClick={() => setSemrushModalVisible(true)}>📊 Semrush 数据</Button>,
+          <Button key="gsc" onClick={() => setGscModalVisible(true)} disabled={!currentSiteId}>🔍 从 GSC 导入</Button>,
           <Button key="export" onClick={() => { window.open('/api/backlinks/export', '_blank', 'noopener,noreferrer'); }}>导出 CSV</Button>,
           <Button key="import" onClick={async () => {
             const hide = message.loading('正在导入…', 0);
@@ -410,6 +426,17 @@ export default function BacklinksPage() {
           size="small"
         />
       </Modal>
+      <GSCImportModal
+        visible={gscModalVisible}
+        onClose={() => setGscModalVisible(false)}
+        onSuccess={() => actionRef.current?.reload()}
+        siteId={currentSiteId}
+      />
+      <QuickImportModal
+        visible={quickImportVisible}
+        onClose={() => setQuickImportVisible(false)}
+        onSuccess={() => actionRef.current?.reload()}
+      />
     </>
   );
 }

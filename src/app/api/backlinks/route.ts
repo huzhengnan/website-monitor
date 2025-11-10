@@ -2,6 +2,48 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { updateRelatedScores } from '@/lib/services/importance-score.service';
 
+// 序列化 BigInt 和其他特殊类型
+function serializeSubmissions(submissions: any[]) {
+  return submissions.map((submission) => ({
+    id: submission.id,
+    siteId: submission.siteId,
+    backlinkSiteId: submission.backlinkSiteId,
+    status: submission.status,
+    notes: submission.notes,
+    submitDate: submission.submitDate,
+    indexedDate: submission.indexedDate,
+    cost: submission.cost ? Number(submission.cost) : null,
+    createdAt: submission.createdAt,
+    updatedAt: submission.updatedAt,
+    backlinkSite: submission.backlinkSite
+      ? {
+          id: submission.backlinkSite.id,
+          url: submission.backlinkSite.url,
+          domain: submission.backlinkSite.domain,
+          dr: submission.backlinkSite.dr,
+          note: submission.backlinkSite.note,
+          importanceScore: submission.backlinkSite.importanceScore,
+          authorityScore: submission.backlinkSite.authorityScore,
+          organicTraffic: submission.backlinkSite.organicTraffic,
+          organicKeywords: submission.backlinkSite.organicKeywords,
+          paidTraffic: submission.backlinkSite.paidTraffic,
+          backlinks: submission.backlinkSite.backlinks
+            ? submission.backlinkSite.backlinks.toString()
+            : null,
+          refDomains: submission.backlinkSite.refDomains,
+          aiVisibility: submission.backlinkSite.aiVisibility,
+          aiMentions: submission.backlinkSite.aiMentions,
+          trafficChange: submission.backlinkSite.trafficChange,
+          keywordsChange: submission.backlinkSite.keywordsChange,
+          semrushLastSync: submission.backlinkSite.semrushLastSync,
+          semrushDataJson: submission.backlinkSite.semrushDataJson,
+          createdAt: submission.backlinkSite.createdAt,
+          updatedAt: submission.backlinkSite.updatedAt,
+        }
+      : null,
+  }));
+}
+
 // 获取指定网站的外链提交记录
 export async function GET(request: NextRequest) {
   try {
@@ -25,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      data: submissions,
+      data: serializeSubmissions(submissions),
     });
   } catch (error) {
     console.error('Failed to fetch backlink submissions:', error);
@@ -97,7 +139,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        data: submission,
+        data: serializeSubmissions([submission])[0],
         message: 'Backlink submission created successfully',
       },
       { status: 201 }

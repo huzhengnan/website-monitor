@@ -70,13 +70,33 @@ export async function GET(request: NextRequest) {
       prisma.backlinkSite.count({ where }),
     ]);
 
-    // 转换 BigInt 为字符串以便 JSON 序列化，并添加提交数量
-    const serializedSites = sites.map((site: any) => ({
-      ...site,
-      backlinks: site.backlinks ? site.backlinks.toString() : null,
-      submissionCount: site.backlinkSubmissions?.length || 0,
-      backlinkSubmissions: undefined, // 不返回详细的提交数据，只返回计数
-    }));
+    // 转换 BigInt 和 Decimal 为字符串以便 JSON 序列化，并添加提交数量
+    const serializedSites = sites.map((site: any) => {
+      const serialized: any = {
+        id: site.id,
+        url: site.url,
+        domain: site.domain,
+        dr: site.dr,
+        note: site.note,
+        importanceScore: site.importanceScore,
+        authorityScore: site.authorityScore,
+        organicTraffic: site.organicTraffic,
+        organicKeywords: site.organicKeywords,
+        paidTraffic: site.paidTraffic,
+        backlinks: site.backlinks ? site.backlinks.toString() : null,
+        refDomains: site.refDomains,
+        aiVisibility: site.aiVisibility,
+        aiMentions: site.aiMentions,
+        trafficChange: site.trafficChange,
+        keywordsChange: site.keywordsChange,
+        semrushLastSync: site.semrushLastSync,
+        semrushDataJson: site.semrushDataJson,
+        createdAt: site.createdAt,
+        updatedAt: site.updatedAt,
+        submissionCount: site.backlinkSubmissions?.length || 0,
+      };
+      return serialized;
+    });
 
     return NextResponse.json({
       success: true,

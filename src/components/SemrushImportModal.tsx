@@ -28,8 +28,10 @@ export default function SemrushImportModal({
     }
 
     // 如果没有检测到域名，需要用户输入
-    if (!pastedText.includes('.com') && !pastedText.includes('.io') && !domainInput.trim()) {
-      message.error('请输入域名或在 Semrush 数据中包含域名');
+    // 使用正则表达式检测域名（支持所有 TLD）
+    const hasDomainInText = /[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/.test(pastedText);
+    if (!hasDomainInText && !domainInput.trim()) {
+      message.error('请输入域名或在 Semrush 数据中包含域名（如 toptool.app）');
       return;
     }
 
@@ -173,14 +175,18 @@ Authority Score
             rows={10}
             disabled={loading}
           />
-          {!pastedText.includes('.com') && !pastedText.includes('.io') && !domainInput.trim() && (
-            <Alert
-              message="提示：请输入域名或在粘贴的数据中包含域名"
-              type="warning"
-              showIcon
-              style={{ marginTop: '8px' }}
-            />
-          )}
+          {(() => {
+            const hasDomainInText = /[a-zA-Z0-9-]+\.[a-zA-Z]{2,}/.test(pastedText);
+            return (!hasDomainInText && !domainInput.trim()) ? (
+              <Alert
+                message="提示：请输入域名或在粘贴的数据中包含域名"
+                description="支持任何域名，如 example.com, toptool.app, my-site.io 等"
+                type="warning"
+                showIcon
+                style={{ marginTop: '8px' }}
+              />
+            ) : null;
+          })()}
         </div>
 
         {/* 支持的字段 */}

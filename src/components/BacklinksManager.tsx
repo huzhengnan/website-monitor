@@ -221,6 +221,10 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
                     backlinkSiteId: existingSite.id,
                   } as BacklinkSubmission);
                 }
+              } else if (response.status === 409) {
+                // 409 Conflict：提交记录已存在，作为已跳过处理
+                console.info(`Submission already exists for ${domain}`);
+                skipped++;
               } else {
                 console.error(`Failed to create submission for ${domain}:`, response.statusText);
                 failed++;
@@ -250,8 +254,9 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
         failedDomains: failed > 0 ? failedDomains : undefined,
       });
 
-      // 如果有失败，自动添加到外链库
-      if (failed > 0) {
+      // 如果有失败，自动添加到外链库（但先显示导入结果）
+      // 注意：409 Conflict 已经作为 skipped 处理，不会进入 failedDomains
+      if (failed > 0 && failedDomains.length > 0) {
         try {
           // 自动添加失败的 URL 到外链库
           let autoAddedCount = 0;
