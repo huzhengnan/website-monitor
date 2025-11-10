@@ -204,6 +204,7 @@ Authority Score
               <div>✓ AI Mentions（AI 提及）</div>
               <div>✓ 流量变化百分比（如 +1.7%）</div>
               <div>✓ 关键词变化百分比（如 -5.7%）</div>
+              <div>✓ 标签（如 Link farm、Spam、Malware 等）</div>
             </div>
           </details>
         </div>

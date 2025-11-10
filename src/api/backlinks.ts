@@ -21,9 +21,7 @@ export interface BacklinkSite {
   trafficChange?: number | null;
   keywordsChange?: number | null;
   semrushLastSync?: string | null;
-
-  // 风险标记
-  riskLevel?: 'safe' | 'low_authority' | 'link_farm' | null;
+  semrushTags?: string[] | null; // Semrush 标签数组 (如 'Link farm', 'Spam' 等)
 
   // 提交统计
   submissionCount?: number;

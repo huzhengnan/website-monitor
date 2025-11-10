@@ -66,7 +66,7 @@ export default function BacklinksPage() {
       dataIndex: 'url',
       width: 140,
       ellipsis: true,
-      hideInTable: false,
+      hideInTable: true,
       render: (_, r) => (
         <Tooltip title={r.url}>
           <Link href={r.url} target="_blank" rel="noopener noreferrer">
@@ -123,6 +123,64 @@ export default function BacklinksPage() {
               </Tag>
             </div>
           </Tooltip>
+        );
+      },
+    },
+    {
+      title: '标签',
+      dataIndex: 'semrushTags',
+      width: 120,
+      ellipsis: true,
+      hideInSearch: true,
+      render: (_, r) => {
+        if (!r.semrushTags || r.semrushTags.length === 0) {
+          return <Typography.Text type="secondary">-</Typography.Text>;
+        }
+        return (
+          <Space size={['small', 0]} wrap>
+            {r.semrushTags.map((tag: string) => {
+              // 根据标签类型设置颜色
+              let color = 'default';
+              const lowerTag = tag.toLowerCase();
+
+              // 顶级标签（蓝色）
+              if (lowerTag.includes('industry leader') ||
+                  lowerTag.includes('market leader')) {
+                color = 'blue';
+              }
+              // 危险标签（红色）
+              else if (lowerTag.includes('farm') ||
+                  lowerTag.includes('spam') ||
+                  lowerTag.includes('malware') ||
+                  lowerTag.includes('phishing')) {
+                color = 'red';
+              }
+              // 警告标签（橙色）
+              else if (lowerTag.includes('suspicious') ||
+                       lowerTag.includes('adult') ||
+                       lowerTag.includes('slow') ||
+                       lowerTag.includes('server') ||
+                       lowerTag.includes('ssl') ||
+                       lowerTag.includes('lacks') ||
+                       lowerTag.includes('outdated') ||
+                       lowerTag.includes('duplicate')) {
+                color = 'orange';
+              }
+              // 积极标签（绿色）
+              else if (lowerTag.includes('good') ||
+                       lowerTag.includes('mobile') ||
+                       lowerTag.includes('friendly')) {
+                color = 'green';
+              }
+              return (
+                <Tooltip key={tag} title={tag}>
+                  <Tag color={color} style={{ fontSize: '11px' }}>
+                    {tag}
+                  </Tag>
+                </Tooltip>
+              );
+            })}
+          </Space>
         );
       },
     },
@@ -217,34 +275,6 @@ export default function BacklinksPage() {
           return <span className="text-sm font-semibold text-purple-600">{(backlinks / 1_000).toFixed(0)}K</span>;
         }
         return <span className="text-sm">{backlinks}</span>;
-      },
-    },
-    {
-      title: '风险标记',
-      dataIndex: 'riskLevel',
-      width: 120,
-      align: 'center',
-      hideInSearch: false,
-      render: (_, r) => {
-        const riskLevel = r.riskLevel || 'safe';
-
-        if (riskLevel === 'link_farm') {
-          return (
-            <Tooltip title="此网站被标记为链接农场，谨慎提交">
-              <Badge status="error" text="链接农场" />
-            </Tooltip>
-          );
-        }
-
-        if (riskLevel === 'low_authority') {
-          return (
-            <Tooltip title="此网站权威度低，质量一般">
-              <Badge status="warning" text="低权威度" />
-            </Tooltip>
-          );
-        }
-
-        return <Typography.Text type="secondary">-</Typography.Text>;
       },
     },
     {

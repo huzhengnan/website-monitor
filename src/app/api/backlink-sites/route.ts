@@ -91,6 +91,7 @@ export async function GET(request: NextRequest) {
         keywordsChange: site.keywordsChange,
         semrushLastSync: site.semrushLastSync,
         semrushDataJson: site.semrushDataJson,
+        semrushTags: site.semrushTags,
         createdAt: site.createdAt,
         updatedAt: site.updatedAt,
         submissionCount: site.backlinkSubmissions?.length || 0,

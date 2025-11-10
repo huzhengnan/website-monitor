@@ -102,58 +102,84 @@ export async function POST(request: NextRequest) {
           backlinksValue = BigInt(Math.round(semrushData.backlinks));
         }
 
-        // 检查是否已存在（优先检查完全相同的 URL）
-        let existingSite = await prisma.backlinkSite.findUnique({
-          where: { url },
+        // 检查是否已存在该域名（不管 URL 如何变化）
+        const existingSites = await prisma.backlinkSite.findMany({
+          where: { domain },
+          orderBy: { createdAt: 'asc' },
         });
 
-        // 如果 URL 不存在，检查是否存在同 domain 但不同 URL 的记录（可能是末尾斜杠等差异）
-        if (!existingSite) {
-          const domainSites = await prisma.backlinkSite.findMany({
-            where: { domain },
-            orderBy: { createdAt: 'asc' },
-            take: 1,
-          });
+        let existingSite = null;
+        let isNew = true;
 
-          if (domainSites.length > 0) {
-            // 发现同 domain 的现有记录，比较 URL 质量，选择更好的 URL
-            const existingUrl = domainSites[0].url;
-            const betterUrl = selectBetterUrl(url, existingUrl);
+        if (existingSites.length > 0) {
+          // 找到了同 domain 的记录
+          isNew = false;
 
-            if (betterUrl !== existingUrl) {
-              // 新 URL 更好，需要更新现有记录的 URL
-              existingSite = domainSites[0];
+          // 选择 URL 最规范的记录
+          let bestSite = existingSites[0];
+          for (const site of existingSites) {
+            const betterUrl = selectBetterUrl(site.url, bestSite.url);
+            if (betterUrl === site.url) {
+              bestSite = site;
+            }
+          }
 
-              // 更新为更规范的 URL
-              await (prisma.backlinkSite.update as any)({
-                where: { id: existingSite.id },
-                data: { url: betterUrl },
+          existingSite = bestSite;
+
+          // 如果新的 URL 更规范，则更新该记录的 URL
+          const betterUrl = selectBetterUrl(url, existingSite.url);
+          if (betterUrl !== existingSite.url) {
+            await (prisma.backlinkSite.update as any)({
+              where: { id: existingSite.id },
+              data: { url: betterUrl },
+            });
+            existingSite.url = betterUrl;
+          }
+
+          // 删除其他同 domain 但不同 URL 的重复记录
+          for (const site of existingSites) {
+            if (site.id !== existingSite.id) {
+              await prisma.backlinkSite.delete({
+                where: { id: site.id },
               });
-
-              // 更新 URL 引用
-              existingSite = await prisma.backlinkSite.findUnique({
-                where: { url: betterUrl },
-              });
-            } else {
-              // 现有 URL 更好，使用现有 URL
-              existingSite = domainSites[0];
             }
           }
         }
 
-        const isNew = !existingSite;
+        // 如果是更新操作，需要检查现有备注是否存在，如果存在则追加而不是覆盖
+        let updateData = { ...updateDataWithoutBigIntAndJson };
+        if (!isNew && existingSite) {
+          // 获取现有的备注
+          const existingNote = existingSite.note || '';
+          const newNote = generateNoteFromSemrush(semrushData);
 
-        // 使用 upsert - 自动创建或更新（用 url 作为唯一字段）
-        // 注意：不在 upsert 时混合 BigInt 和其他类型，避免 Prisma 类型混合错误
-        const site = await (prisma.backlinkSite.upsert as any)({
-          where: { url },
-          create: {
-            url,
-            domain,
-            ...updateDataWithoutBigIntAndJson,
-          },
-          update: updateDataWithoutBigIntAndJson,
-        });
+          // 如果现有备注不为空，就追加新备注（用分号分隔）
+          if (existingNote && newNote && !existingNote.includes(newNote)) {
+            updateData.note = `${existingNote}; ${newNote}`;
+          } else if (newNote) {
+            updateData.note = newNote;
+          }
+        }
+
+        // 创建或更新记录
+        // 注意：不在操作时混合 BigInt 和其他类型，避免 Prisma 类型混合错误
+        let site;
+        if (isNew) {
+          // 创建新记录
+          site = await (prisma.backlinkSite.create as any)({
+            data: {
+              url,
+              domain,
+              ...updateData,
+            },
+          });
+        } else {
+          // 更新现有记录
+          site = await (prisma.backlinkSite.update as any)({
+            where: { id: existingSite!.id },
+            data: updateData,
+          });
+        }
 
         // 单独处理 BigInt 字段（避免与其他类型混合）
         if (backlinksValue) {
@@ -163,10 +189,13 @@ export async function POST(request: NextRequest) {
           });
         }
 
-        // 单独处理 JSON 数据
+        // 单独处理 JSON 数据和标签
         await (prisma.backlinkSite.update as any)({
           where: { id: site.id },
-          data: { semrushDataJson: semrushData },
+          data: {
+            semrushDataJson: semrushData,
+            semrushTags: semrushData.tags || null, // 保存提取的标签或 null
+          },
         });
 
         // 自动计算重要程度评分

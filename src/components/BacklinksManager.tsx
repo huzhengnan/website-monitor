@@ -46,6 +46,7 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pasteData, setPasteData] = useState('');
   const [importLoading, setImportLoading] = useState(false);
+  const [importStatus, setImportStatus] = useState<'submitted' | 'indexed'>('submitted'); // 导入时的默认状态
   const [formData, setFormData] = useState({
     backlinkSiteId: '',
     status: 'pending',
@@ -80,7 +81,7 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
 
   const loadBacklinkSites = async () => {
     try {
-      const response = await fetch('/api/backlink-sites?limit=500');
+      const response = await fetch('/api/backlink-sites?pageSize=500');
       if (response.ok) {
         const result = await response.json();
         setBacklinkSites(result.data || []);
@@ -117,6 +118,20 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
     try {
       setImportLoading(true);
 
+      // 先重新加载所有现有的外链库（确保列表完整）
+      let currentBacklinkSites: BacklinkSite[] = [];
+      try {
+        const listResponse = await fetch('/api/backlink-sites?pageSize=1000&page=1');
+        if (listResponse.ok) {
+          const result = await listResponse.json();
+          currentBacklinkSites = result.data || [];
+          console.log(`✓ Loaded ${currentBacklinkSites.length} backlink sites from database`);
+        }
+      } catch (error) {
+        console.error('Failed to load backlink sites:', error);
+        currentBacklinkSites = backlinkSites; // Fallback to cached list
+      }
+
       // 先一次性获取所有现有的提交记录
       let existingSubmissions: BacklinkSubmission[] = [];
       try {
@@ -130,7 +145,7 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
       }
 
       // 解析粘贴的数据 - 处理多种格式
-      const lines = pasteData.trim().split('\n').filter(line => line.trim());
+      const lines = pasteData.trim().split('\n');
       let imported = 0;
       let skipped = 0;
       let failed = 0;
@@ -140,15 +155,19 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
       // 收集所有可能的 URL（用于规范化和去重）
       const urlsToImport: string[] = [];
 
-      for (const line of lines) {
-        const trimmed = line.trim();
+      for (let i = 0; i < lines.length; i++) {
+        const trimmed = lines[i].trim();
         if (!trimmed) continue;
 
-        // 跳过表头和数字行
+        // 跳过表头
         if (trimmed.toLowerCase() === '网站' ||
             trimmed.toLowerCase() === '引荐网页数' ||
-            trimmed.toLowerCase() === '着陆页' ||
-            /^\d+$/.test(trimmed)) {
+            trimmed.toLowerCase() === '着陆页') {
+          continue;
+        }
+
+        // 检查是否是纯数字行（表格中的数据行，应该跳过）
+        if (/^\d+(\s+\d+)*$/.test(trimmed)) {
           continue;
         }
 
@@ -157,12 +176,17 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
         // 1. 纯域名: example.com
         // 2. URL: https://example.com
         // 3. 域名+数字混合: toptool.app (数字会被忽略)
+        // 4. 多个域名在一行: example.com example2.com
 
         const parts = trimmed.split(/\s+/);
         for (const part of parts) {
           // 检查是否看起来像域名或 URL（包含 . 且不是纯数字）
-          if (part.includes('.') && !/^\d+$/.test(part) && !part.match(/^\d+\.\d+$/)) {
-            urlsToImport.push(part);
+          if (part.includes('.') && !/^\d+$/.test(part) && !part.match(/^\d+\.\d+$/) && !/^https?:\/\/\d+/.test(part)) {
+            // 移除前后的特殊字符（如果有的话）
+            const cleaned = part.replace(/^[^\w]|[^\w]$/g, '');
+            if (cleaned && cleaned.includes('.')) {
+              urlsToImport.push(cleaned);
+            }
           }
         }
       }
@@ -182,8 +206,8 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
       // 现在导入收集到的域名
       for (const [domain, normalizedUrl] of urlToDomainMap.entries()) {
 
-        // 在现有的外链站点中查找
-        const existingSite = backlinkSites.find(s =>
+        // 在现有的外链站点中查找（使用新加载的完整列表）
+        const existingSite = currentBacklinkSites.find(s =>
           s.domain?.toLowerCase() === domain.toLowerCase() ||
           s.url?.toLowerCase().includes(domain.toLowerCase())
         );
@@ -203,10 +227,10 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
                 body: JSON.stringify({
                   siteId,
                   backlinkSiteId: existingSite.id,
-                  status: 'submitted',
+                  status: importStatus,
                   notes: '',
                   submitDate: new Date().toISOString().split('T')[0],
-                  indexedDate: null,
+                  indexedDate: importStatus === 'indexed' ? new Date().toISOString().split('T')[0] : null,
                   cost: null,
                 }),
               });
@@ -237,10 +261,9 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
             skipped++;
           }
         } else {
-          // 域名在库中找不到
+          // 域名在库中找不到，尝试先添加到外链库
           console.warn(`Domain not found in backlink sites: ${domain}`);
-          failed++;
-          failedDomains.push(normalizedUrl); // 记录失败的 URL（规范化格式）
+          failedDomains.push(normalizedUrl); // 记录需要添加的 URL
         }
       }
 
@@ -254,12 +277,13 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
         failedDomains: failed > 0 ? failedDomains : undefined,
       });
 
-      // 如果有失败，自动添加到外链库（但先显示导入结果）
-      // 注意：409 Conflict 已经作为 skipped 处理，不会进入 failedDomains
-      if (failed > 0 && failedDomains.length > 0) {
+      // 如果有失败的域名，自动添加到外链库或获取已存在的记录
+      if (failedDomains.length > 0) {
         try {
-          // 自动添加失败的 URL 到外链库
           let autoAddedCount = 0;
+          let createdCount = 0;
+          const newSubmissionsForAdded: any[] = [];
+
           for (const normalizedUrl of failedDomains) {
             try {
               const domain = extractDomain(normalizedUrl).toLowerCase();
@@ -273,55 +297,108 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
               });
 
               if (addResponse.ok) {
-                autoAddedCount++;
                 const result = await addResponse.json();
-                // 处理三种响应状态
-                if (result.status === 'created') {
-                  console.log(`✅ Successfully created domain: ${domain}`);
-                } else if (result.status === 'duplicate_merged') {
+                const backlinkSiteId = result.data?.id;
+
+                if (backlinkSiteId) {
+                  // 成功创建或获取到外链站点，现在为当前网站创建提交记录
+                  try {
+                    const submissionResponse = await fetch('/api/backlinks', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        siteId,
+                        backlinkSiteId,
+                        status: importStatus,
+                        notes: '',
+                        submitDate: new Date().toISOString().split('T')[0],
+                        indexedDate: importStatus === 'indexed' ? new Date().toISOString().split('T')[0] : null,
+                        cost: null,
+                      }),
+                    });
+
+                    if (submissionResponse.ok) {
+                      autoAddedCount++;
+                      createdCount++;
+                      const submissionData = await submissionResponse.json();
+                      if (submissionData.data) {
+                        newSubmissionsForAdded.push(submissionData.data);
+                      }
+                      console.log(`✅ Domain added and submission created: ${domain}`);
+                    } else {
+                      // 站点创建成功但提交记录创建失败
+                      autoAddedCount++;
+                      console.warn(`Site added but submission creation failed: ${domain}`);
+                    }
+                  } catch (submissionError) {
+                    // 站点创建成功但提交记录创建异常
+                    autoAddedCount++;
+                    console.warn(`Site added but submission creation error: ${domain}`, submissionError);
+                  }
+                }
+
+                if (result.status === 'duplicate_merged') {
                   console.log(`✅ Merged with existing domain: ${domain}`);
                 } else if (result.status === 'duplicate_exists') {
-                  console.log(`ℹ️ Domain already exists with better URL: ${domain}`);
+                  console.log(`ℹ️ Domain already exists: ${domain}`);
+                }
+              } else if (addResponse.status === 409) {
+                // 409 表示 URL 完全相同已存在，需要查询该记录并创建提交
+                try {
+                  // 重新加载外链站点列表并查找这个域名
+                  const listResponse = await fetch(`/api/backlink-sites?pageSize=500`);
+                  if (listResponse.ok) {
+                    const listResult = await listResponse.json();
+                    const existingSite = listResult.data?.find((s: any) =>
+                      s.url?.toLowerCase() === normalizedUrl.toLowerCase() ||
+                      s.domain?.toLowerCase() === domain.toLowerCase()
+                    );
+
+                    if (existingSite) {
+                      // 为这个站点创建提交记录
+                      const submissionResponse = await fetch('/api/backlinks', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          siteId,
+                          backlinkSiteId: existingSite.id,
+                          status: importStatus,
+                          notes: '',
+                          submitDate: new Date().toISOString().split('T')[0],
+                          indexedDate: importStatus === 'indexed' ? new Date().toISOString().split('T')[0] : null,
+                          cost: null,
+                        }),
+                      });
+
+                      if (submissionResponse.ok) {
+                        autoAddedCount++;
+                        createdCount++;
+                        console.log(`✅ Submission created for existing site: ${domain}`);
+                      } else if (submissionResponse.status === 409) {
+                        // 提交记录也已存在，计为跳过
+                        console.info(`Submission already exists for ${domain}`);
+                      }
+                    }
+                  }
+                } catch (error) {
+                  console.error(`Error handling existing site: ${domain}`, error);
                 }
               } else {
                 const error = await addResponse.json();
-                if (addResponse.status === 409) {
-                  // 域名已存在
-                  console.warn(`Exact URL already exists: ${normalizedUrl}`);
-                } else {
-                  console.warn(`Failed to add domain to backlink sites: ${domain}`, error);
-                }
+                console.warn(`Failed to add domain to backlink sites: ${domain}`, error);
               }
             } catch (error) {
-              console.error(`Error adding domain to backlink sites:`, error);
+              console.error(`Error processing domain to backlink sites:`, error);
             }
           }
 
-          // 重新加载外链库列表
+          // 重新加载外链库列表和提交列表
           if (autoAddedCount > 0) {
             await loadBacklinkSites();
-            showSuccessModal('✅ 自动添加成功', (
-              <div className="space-y-2">
-                <p>已自动添加 <span className="font-semibold text-green-600">{autoAddedCount}</span> 个域名到外链库</p>
-                <p className="text-gray-600 text-sm">现在可以重新导入这些域名</p>
-              </div>
-            ));
-          } else {
-            showErrorModal('⚠️ 自动添加', (
-              <div className="space-y-2">
-                <p>这些域名可能已在外链库中，或自动添加失败</p>
-                <p className="text-gray-600 text-sm">请稍后手动在【外链库】页面添加</p>
-              </div>
-            ));
+            await loadSubmissions();
           }
         } catch (error) {
-          console.error('Error auto-adding domains:', error);
-          showErrorModal('⚠️ 自动添加出错', (
-            <div className="space-y-2">
-              <p>自动添加域名失败</p>
-              <p className="text-gray-600 text-sm">请手动在【外链库】页面添加这些域名</p>
-            </div>
-          ));
+          console.error('Error processing failed domains:', error);
         }
       }
 
@@ -556,6 +633,34 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
             rows={8}
             className="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono text-sm"
           />
+
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-foreground">导入后的初始状态：</p>
+            <div className="flex gap-3">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="import-status"
+                  value="submitted"
+                  checked={importStatus === 'submitted'}
+                  onChange={e => setImportStatus(e.target.value as 'submitted' | 'indexed')}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">已提交 (submitted)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="import-status"
+                  value="indexed"
+                  checked={importStatus === 'indexed'}
+                  onChange={e => setImportStatus(e.target.value as 'submitted' | 'indexed')}
+                  className="w-4 h-4"
+                />
+                <span className="text-sm">已收录 (indexed)</span>
+              </label>
+            </div>
+          </div>
 
           <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-900/40 rounded p-3">
             <p className="text-xs text-amber-900 dark:text-amber-300">

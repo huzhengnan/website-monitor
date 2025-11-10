@@ -15,7 +15,31 @@ export interface SemrushData {
   aiMentions?: number;
   trafficChange?: number;
   keywordsChange?: number;
+  tags?: string[]; // Semrush 标签数组，例如 ['Link farm', 'Adult content', ...]
 }
+
+/**
+ * 已知的 Semrush 标签列表（基于常见的网站风险和内容类别标记）
+ */
+const KNOWN_SEMRUSH_TAGS = [
+  'Link farm',
+  'Adult content',
+  'Gambling',
+  'Spam',
+  'Malware',
+  'Phishing',
+  'Suspicious',
+  'Not indexed',
+  'Slow loading',
+  'Server issues',
+  'SSL issues',
+  'Mobile friendly',
+  'Low authority',
+  'Newly registered',
+  'Outdated content',
+  'Duplicate content',
+  'Very good',
+];
 
 /**
  * 从文本中提取数字（支持 K、M、B 等单位）
@@ -126,11 +150,10 @@ function parseSemrushBlock(lines: string[]): SemrushData {
     if (lowerLine === 'usd' || lowerLine === 'us' || lowerLine === 'today,' || lowerLine === 'today') return false;
     if (lowerLine === 'soon' || lowerLine === '-' || lowerLine === ':' || lowerLine === '域名概览：') return false;
     if (line.match(/^[A-Z]{2}$/)) return false; // 国家代码
-    if (lowerLine === 'good' || lowerLine === 'bad' || lowerLine === 'excellent' || lowerLine === 'poor') return false; // 评级词
     if (lowerLine === 'chatgpt' || lowerLine === 'gemini' || lowerLine === 'ai overview' || lowerLine === 'ai mode') return false; // AI 产品名
     if (lowerLine.includes('流量比例') || lowerLine.includes('引用') || lowerLine.includes('cited')) return false;
-    // 注意：保留 'link farm' 不过滤，因为它是有意义的状态标记
-    if (line.length <= 3 && !line.includes('.') && !line.match(/^\d+\.?\d*[KMB]?$/) && !lowerLine.includes('farm')) return false;
+    // 注意：保留所有可能的标签，包括 'very good' 等
+    // 不过滤短词，让标签提取器处理
     return true;
   };
 
@@ -367,16 +390,71 @@ function parseSemrushBlock(lines: string[]): SemrushData {
         data.keywordsChange = parseFloat(match[1]);
       }
     }
+  }
 
-    // 风险级别检测
-    // Link Farm（最严重）
-    if (lowerLine.includes('link') && lowerLine.includes('farm')) {
-      data.riskLevel = 'link_farm';
+  // 提取标签：在 Authority Score 之后的非数字行作为标签
+  // Semrush 的格式是：Authority Score -> 分数 -> 标签（如 "Very good"）
+  const tags: string[] = [];
+
+  // 已知的 Semrush 字段名（精确匹配，而不是包含匹配）
+  const semrushFieldNames = new Set([
+    'organic traffic',
+    'paid traffic',
+    'backlinks',
+    'ref.domains',
+    'referring domains',
+    'organic keywords',
+    'paid keywords',
+    'ai visibility',
+    'ai mentions',
+    'cited pages',
+    'traffic change',
+    'keywords change',
+    'authority score',
+  ]);
+
+  for (let i = 0; i < finalProcessedLines.length; i++) {
+    const line = finalProcessedLines[i];
+    const lowerLine = line.toLowerCase();
+
+    // 找到 Authority Score 行
+    if (lowerLine.includes('authority') && lowerLine.includes('score')) {
+      // 查找后续的第一个非数字、非字段名的行作为标签
+      for (let j = i + 1; j < finalProcessedLines.length; j++) {
+        const nextLine = finalProcessedLines[j].trim();
+        const lowerNextLine = nextLine.toLowerCase();
+
+        // 跳过纯数字行
+        if (nextLine.match(/^\d+\.?\d*[KMB%]?$/)) {
+          continue;
+        }
+
+        // 检查是否是已知的字段名（精确匹配）
+        let isFieldName = false;
+        for (const fieldName of semrushFieldNames) {
+          if (lowerNextLine === fieldName ||
+              (lowerNextLine.startsWith(fieldName) && !lowerNextLine.replace(fieldName, '').trim().match(/^\d/))) {
+            isFieldName = true;
+            break;
+          }
+        }
+
+        if (isFieldName) {
+          break;
+        }
+
+        // 这就是标签
+        if (nextLine && !tags.includes(nextLine)) {
+          tags.push(nextLine);
+        }
+        break;
+      }
+      break; // 只需要找一个标签，Authority Score 之后的就是
     }
-    // Low Authority（中等风险）- 只有在没有检测到link farm时才设置
-    else if (lowerLine.includes('low') && lowerLine.includes('authority') && data.riskLevel !== 'link_farm') {
-      data.riskLevel = 'low_authority';
-    }
+  }
+
+  if (tags.length > 0) {
+    data.tags = tags;
   }
 
   return data;
