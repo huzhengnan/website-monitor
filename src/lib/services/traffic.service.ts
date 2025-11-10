@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import {
   TrafficData,
   TrafficSource,
@@ -12,7 +12,6 @@ import {
   ValidationError,
 } from '../types';
 
-const prisma = new PrismaClient();
 
 /**
  * Get traffic data for a specific site with date range filtering

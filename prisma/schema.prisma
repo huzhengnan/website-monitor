@@ -65,6 +65,7 @@ model Site {
   connectors Connector[]
   anomalies  TrafficAnomaly[]
   searchConsoleData SearchConsoleData[]
+  backlinkSubmissions BacklinkSubmission[]
 
   @@index([categoryId])
   @@index([status])
@@ -332,4 +333,54 @@ model Settings {
 
   @@schema("website_manager")
   @@map("settings")
+}
+
+// ============================================================================
+// 外链站点（提交目录/导航站）
+// ============================================================================
+
+model BacklinkSite {
+  id        String   @id @default(uuid()) @db.Uuid
+  url       String   @unique @db.VarChar(500)
+  domain    String   @db.VarChar(255)
+  dr        Decimal? @db.Decimal(6, 2)
+  note      String?
+  // 重要程度评分：综合 DR、提交状态、提交数量计算（0-100）
+  // 计算方式：DR权重50% + 提交状态权重30% + 提交数量权重20%
+  importanceScore Int? @default(0) @map("importance_score")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  backlinkSubmissions BacklinkSubmission[]
+
+  @@index([domain])
+  @@index([importanceScore(sort: Desc)])
+  @@schema("website_manager")
+  @@map("backlink_sites")
+}
+
+// 网站提交记录（记录每个网站向各个外链站点的提交状态）
+model BacklinkSubmission {
+  id            String    @id @default(uuid()) @db.Uuid
+  siteId        String    @map("site_id") @db.Uuid
+  backlinkSiteId String   @map("backlink_site_id") @db.Uuid
+  status        String    @db.VarChar(50) // pending, submitted, indexed, failed, contacted
+  notes         String?
+  submitDate    DateTime? @map("submit_date")
+  indexedDate   DateTime? @map("indexed_date")
+  cost          Decimal?  @db.Decimal(10, 2) // 提交费用
+  trackedAt     DateTime? @map("tracked_at") // 最后检查收录状态的时间
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  site          Site          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  backlinkSite  BacklinkSite  @relation(fields: [backlinkSiteId], references: [id], onDelete: Cascade)
+
+  @@unique([siteId, backlinkSiteId])
+  @@index([siteId])
+  @@index([backlinkSiteId])
+  @@index([status])
+  @@index([submitDate(sort: Desc)])
+  @@schema("website_manager")
+  @@map("backlink_submissions")
 }

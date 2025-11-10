@@ -17,7 +17,7 @@ export function SiteIdInput({
 }: SiteIdInputProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-foreground mb-2">
         站点 ID
       </label>
       <input
@@ -25,12 +25,12 @@ export function SiteIdInput({
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-2 border border-border bg-background text-foreground rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
       />
       {showHelper && (
-        <p className="text-xs text-gray-500 mt-2">
+        <p className="text-xs text-muted-foreground mt-2">
           站点 ID 应该是一个有效的 UUID 格式（36 个字符，包括连字符）。你可以在
-          <Link href="/sites" className="text-blue-600 hover:underline ml-1 mr-1">
+          <Link href="/sites" className="text-indigo-600 dark:text-indigo-400 hover:underline ml-1 mr-1">
             站点列表
           </Link>
           找到站点 UUID。

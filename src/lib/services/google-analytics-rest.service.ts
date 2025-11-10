@@ -488,6 +488,37 @@ export class GoogleAnalyticsRestClient {
       throw error;
     }
   }
+
+  /**
+   * Get raw session sources (un-normalized), distinct list
+   */
+  async getSessionSources(startDate: string, endDate: string): Promise<string[]> {
+    const accessToken = await this.getAccessToken();
+    const headers = {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    };
+    const url = 'https://analyticsdata.googleapis.com/v1beta/properties/' + this.propertyId + ':runReport';
+    const response = await this.client.post(
+      url,
+      {
+        dateRanges: [{ startDate, endDate }],
+        metrics: [ { name: 'sessions' } ],
+        dimensions: [{ name: 'sessionSource' }],
+        orderBys: [ { metric: { name: 'sessions' }, desc: true } ],
+        limit: 10000,
+      },
+      { headers }
+    );
+    const set = new Set<string>();
+    if (response.data?.rows) {
+      for (const row of response.data.rows) {
+        const src = (row.dimensionValues?.[0]?.value || '').toString().toLowerCase();
+        if (src) set.add(src);
+      }
+    }
+    return Array.from(set);
+  }
 }
 
 /**

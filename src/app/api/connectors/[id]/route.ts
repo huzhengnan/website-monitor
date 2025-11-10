@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import {
   updateConnector,
   deleteConnector,
 } from '@/lib/services/connector.service';
 import { ApiError, NotFoundError } from '@/lib/types';
 
-const prisma = new PrismaClient();
 
 /**
  * GET /api/connectors/[id]

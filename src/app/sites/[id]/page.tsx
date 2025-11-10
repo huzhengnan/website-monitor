@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useParams } from 'next/navigation';
-import { ArrowLeft, Globe, Calendar, Search } from 'lucide-react';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { ArrowLeft, Globe, Calendar, Search, Link2 } from 'lucide-react';
 import { getSiteById, Site } from '@/api/sites';
+import { BacklinksManager } from '@/components/BacklinksManager';
 
 export default function SiteDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const id = params.id as string;
 
   const [site, setSite] = useState<Site | null>(null);
@@ -16,6 +18,10 @@ export default function SiteDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchData, setSearchData] = useState<any>(null);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'backlinks'>(() => {
+    const tab = searchParams?.get('tab');
+    return tab === 'backlinks' ? 'backlinks' : 'overview';
+  });
 
   useEffect(() => {
     const loadSite = async () => {
@@ -67,14 +73,14 @@ export default function SiteDetailPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <div className="text-gray-600">加载中...</div>
+        <div className="text-muted-foreground">加载中...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 dark:bg-red-900/20 dark:border-red-900/40 dark:text-red-300">
         <p className="font-semibold">加载失败</p>
         <p className="text-sm">{error}</p>
       </div>
@@ -83,8 +89,8 @@ export default function SiteDetailPage() {
 
   if (!site) {
     return (
-      <div className="bg-gray-50 rounded-lg p-12 text-center">
-        <p className="text-gray-600 text-lg">站点不存在</p>
+      <div className="bg-muted/30 rounded-lg p-12 text-center">
+        <p className="text-muted-foreground text-lg">站点不存在</p>
       </div>
     );
   }
@@ -97,35 +103,61 @@ export default function SiteDetailPage() {
       <div className="flex items-center gap-4">
         <button
           onClick={() => router.back()}
-          className="p-2 hover:bg-gray-100 rounded-lg transition"
+          className="p-2 hover:bg-muted/30 rounded-lg transition"
         >
-          <ArrowLeft className="w-5 h-5 text-gray-600" />
+          <ArrowLeft className="w-5 h-5 text-muted-foreground" />
         </button>
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">{site.name}</h1>
-          <p className="text-gray-600 mt-1">{site.domain}</p>
+          <h1 className="text-3xl font-bold text-foreground">{site.name}</h1>
+          <p className="text-muted-foreground mt-1">{site.domain}</p>
         </div>
       </div>
 
+      {/* Tab Navigation */}
+      <div className="flex gap-4 border-b border-border">
+        <button
+          onClick={() => setActiveTab('overview')}
+          className={`px-4 py-3 font-medium text-sm transition border-b-2 ${
+            activeTab === 'overview'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          概览
+        </button>
+        <button
+          onClick={() => setActiveTab('backlinks')}
+          className={`px-4 py-3 font-medium text-sm transition border-b-2 flex items-center gap-2 ${
+            activeTab === 'backlinks'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Link2 className="w-4 h-4" />
+          外链管理
+        </button>
+      </div>
+
       {/* Main Content */}
+      {activeTab === 'overview' ? (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column - Basic Info */}
         <div className="lg:col-span-2 space-y-6">
           {/* Basic Information */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">基本信息</h2>
+          <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
+            <h2 className="text-lg font-semibold text-foreground mb-4">基本信息</h2>
             <div className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-600">站点名称</label>
-                <p className="text-gray-900 mt-1">{site.name}</p>
+                <label className="text-sm font-medium text-muted-foreground">站点名称</label>
+                <p className="text-foreground mt-1">{site.name}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-600">网址</label>
+                <label className="text-sm font-medium text-muted-foreground">网址</label>
                 <a
                   href={site.domain}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-indigo-600 hover:text-indigo-700 mt-1 flex items-center gap-2"
+                  className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 mt-1 flex items-center gap-2"
                 >
                   {site.domain}
                   <Globe className="w-4 h-4" />
@@ -133,19 +165,19 @@ export default function SiteDetailPage() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-600">分类</label>
-                  <p className="text-gray-900 mt-1">{site.category?.name || '未分类'}</p>
+                  <label className="text-sm font-medium text-muted-foreground">分类</label>
+                  <p className="text-foreground mt-1">{site.category?.name || '未分类'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-600">状态</label>
+                  <label className="text-sm font-medium text-muted-foreground">状态</label>
                   <div className="mt-1">
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold ${
                         site.status === 'online'
-                          ? 'bg-green-100 text-green-800'
+                          ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
                           : site.status === 'maintenance'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-red-100 text-red-800'
+                            ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'
+                            : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
                       }`}
                     >
                       {site.status === 'online'
@@ -168,18 +200,18 @@ export default function SiteDetailPage() {
 
           {/* Search Console Data */}
           {searchLoading ? (
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
               <div className="flex items-center gap-2 mb-4">
-                <Search className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">搜索流量</h2>
+                <Search className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h2 className="text-lg font-semibold text-foreground">搜索流量</h2>
               </div>
-              <div className="text-gray-600">加载中...</div>
+              <div className="text-muted-foreground">加载中...</div>
             </div>
           ) : searchData ? (
-            <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
               <div className="flex items-center gap-2 mb-6">
-                <Search className="w-5 h-5 text-blue-600" />
-                <h2 className="text-lg font-semibold text-gray-900">搜索流量</h2>
+                <Search className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h2 className="text-lg font-semibold text-foreground">搜索流量</h2>
               </div>
 
               {/* Key Metrics */}
@@ -213,17 +245,17 @@ export default function SiteDetailPage() {
               {/* Top Queries */}
               {searchData.topQueries && searchData.topQueries.length > 0 && (
                 <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">热门搜索词</h3>
+                  <h3 className="text-sm font-semibold text-foreground mb-3">热门搜索词</h3>
                   <div className="space-y-2">
                     {searchData.topQueries.slice(0, 5).map((query: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                      <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition">
                         <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">{query.query}</div>
-                          <div className="text-xs text-gray-600 mt-1">
+                          <div className="text-sm font-medium text-foreground">{query.query}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
                             点击: {query.clicks} | 展现: {query.impressions} | 排名: {query.position?.toFixed(1)}
                           </div>
                         </div>
-                        <div className="text-sm font-semibold text-blue-600 ml-2">{query.ctr?.toFixed(1)}%</div>
+                        <div className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 ml-2">{query.ctr?.toFixed(1)}%</div>
                       </div>
                     ))}
                   </div>
@@ -233,13 +265,13 @@ export default function SiteDetailPage() {
               {/* Top Pages */}
               {searchData.topPages && searchData.topPages.length > 0 && (
                 <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">热门页面</h3>
+                  <h3 className="text-sm font-semibold text-foreground mb-3">热门页面</h3>
                   <div className="space-y-2">
                     {searchData.topPages.slice(0, 5).map((page: any, idx: number) => (
-                      <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                      <div key={idx} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg hover:bg-muted/50 transition">
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-gray-900 truncate">{page.page}</div>
-                          <div className="text-xs text-gray-600 mt-1">
+                          <div className="text-sm font-medium text-foreground truncate">{page.page}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
                             点击: {page.clicks} | 展现: {page.impressions}
                           </div>
                         </div>
@@ -254,13 +286,13 @@ export default function SiteDetailPage() {
 
           {/* Tags */}
           {site.tags && site.tags.length > 0 && (
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">标签</h2>
+            <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
+              <h2 className="text-lg font-semibold text-foreground mb-4">标签</h2>
               <div className="flex flex-wrap gap-2">
                 {site.tags.map((tag) => (
                   <span
                     key={tag.id}
-                    className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium"
+                    className="px-3 py-1 bg-indigo-100 text-indigo-700 dark:bg-indigo-900/20 dark:text-indigo-300 rounded-full text-sm font-medium"
                   >
                     {tag.name}
                   </span>
@@ -270,33 +302,33 @@ export default function SiteDetailPage() {
           )}
 
           {/* Quick Actions */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">快速操作</h2>
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-900/40 rounded-lg p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">快速操作</h2>
             <div className="grid grid-cols-2 gap-3">
               <Link
                 href={`/sites/${site.id}/traffic`}
-                className="p-3 bg-white rounded-lg border border-gray-200 text-center hover:bg-gray-50 transition"
+                className="p-3 bg-card rounded-lg border border-border text-center hover:bg-muted/30 transition"
               >
-                <div className="text-sm font-semibold text-gray-900">查看流量</div>
-                <div className="text-xs text-gray-600">流量分析</div>
+                <div className="text-sm font-semibold text-foreground">查看流量</div>
+                <div className="text-xs text-muted-foreground">流量分析</div>
               </Link>
               <Link
                 href={`/sites/${site.id}/evaluations`}
-                className="p-3 bg-white rounded-lg border border-gray-200 text-center hover:bg-gray-50 transition"
+                className="p-3 bg-card rounded-lg border border-border text-center hover:bg-muted/30 transition"
               >
-                <div className="text-sm font-semibold text-gray-900">五维评价</div>
-                <div className="text-xs text-gray-600">评分记录</div>
+                <div className="text-sm font-semibold text-foreground">五维评价</div>
+                <div className="text-xs text-muted-foreground">评分记录</div>
               </Link>
               <Link
                 href={`/sites/${site.id}/edit`}
-                className="p-3 bg-white rounded-lg border border-gray-200 text-center hover:bg-gray-50 transition"
+                className="p-3 bg-card rounded-lg border border-border text-center hover:bg-muted/30 transition"
               >
-                <div className="text-sm font-semibold text-gray-900">编辑信息</div>
-                <div className="text-xs text-gray-600">修改设置</div>
+                <div className="text-sm font-semibold text-foreground">编辑信息</div>
+                <div className="text-xs text-muted-foreground">修改设置</div>
               </Link>
               <button className="p-3 bg-white rounded-lg border border-gray-200 text-center hover:bg-gray-50 transition">
-                <div className="text-sm font-semibold text-gray-900">生成报告</div>
-                <div className="text-xs text-gray-600">导出数据</div>
+                <div className="text-sm font-semibold text-foreground">生成报告</div>
+                <div className="text-xs text-muted-foreground">导出数据</div>
               </button>
             </div>
           </div>
@@ -305,34 +337,39 @@ export default function SiteDetailPage() {
         {/* Right Column - Stats */}
         <div className="space-y-6">
           {/* Creation Info */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
+          <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
             <div className="flex items-center gap-2 text-gray-600 mb-2">
               <Calendar className="w-4 h-4" />
               <span className="text-sm font-medium">创建时间</span>
             </div>
-            <p className="text-gray-900 font-semibold">{createdDate}</p>
+            <p className="text-foreground font-semibold">{createdDate}</p>
           </div>
 
           {/* Placeholder Stats */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h3 className="font-semibold text-gray-900 mb-4">站点统计</h3>
+          <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
+            <h3 className="font-semibold text-foreground mb-4">站点统计</h3>
             <div className="space-y-3">
               <div>
-                <div className="text-sm text-gray-600">最近7天PV</div>
-                <div className="text-2xl font-bold text-gray-900">-</div>
+                <div className="text-sm text-muted-foreground">最近7天PV</div>
+                <div className="text-2xl font-bold text-foreground">-</div>
               </div>
               <div>
-                <div className="text-sm text-gray-600">平均评分</div>
-                <div className="text-2xl font-bold text-gray-900">-</div>
+                <div className="text-sm text-muted-foreground">平均评分</div>
+                <div className="text-2xl font-bold text-foreground">-</div>
               </div>
               <div>
-                <div className="text-sm text-gray-600">评价次数</div>
-                <div className="text-2xl font-bold text-gray-900">0</div>
+                <div className="text-sm text-muted-foreground">评价次数</div>
+                <div className="text-2xl font-bold text-foreground">0</div>
               </div>
             </div>
           </div>
         </div>
       </div>
+      ) : (
+        <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
+          <BacklinksManager siteId={id} />
+        </div>
+      )}
     </div>
   );
 }

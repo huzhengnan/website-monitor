@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useTheme } from './ThemeContext';
 import * as echarts from 'echarts';
 
 interface RadarChartProps {
@@ -23,6 +24,7 @@ export default function RadarChart({
 }: RadarChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
+  const { isDark } = useTheme();
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -33,6 +35,10 @@ export default function RadarChart({
     }
 
     // Chart configuration
+    const gridColor = isDark ? '#334155' : '#e5e7eb';
+    const axisColor = isDark ? '#64748b' : '#94a3b8';
+    const textColor = isDark ? '#cbd5e1' : '#475569';
+    const mainColor = '#3b82f6';
     const option: echarts.EChartsOption = {
       tooltip: {
         trigger: 'item',
@@ -58,29 +64,26 @@ export default function RadarChart({
         splitNumber: 4,
         name: {
           textStyle: {
-            color: '#666' as any,
+            color: textColor as any,
             fontSize: 12,
           },
         } as any,
         splitLine: {
           lineStyle: {
-            color: ['#ddd', '#eee', '#f5f5f5', '#fafafa'],
+            color: [gridColor, gridColor, gridColor, gridColor],
           },
         },
         splitArea: {
           show: true,
           areaStyle: {
-            color: [
-              'rgba(240, 240, 240, 0.1)',
-              'rgba(240, 240, 240, 0.2)',
-              'rgba(240, 240, 240, 0.3)',
-              'rgba(240, 240, 240, 0.4)',
-            ],
+            color: isDark
+              ? ['rgba(30,41,59,0.10)', 'rgba(30,41,59,0.12)', 'rgba(30,41,59,0.14)', 'rgba(30,41,59,0.16)']
+              : ['rgba(240,240,240,0.10)', 'rgba(240,240,240,0.12)', 'rgba(240,240,240,0.14)', 'rgba(240,240,240,0.16)'],
           },
         },
         axisLine: {
           lineStyle: {
-            color: '#ccc',
+            color: axisColor,
           },
         },
       },
@@ -102,21 +105,21 @@ export default function RadarChart({
                 color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
                   {
                     offset: 0,
-                    color: 'rgba(59, 130, 246, 0.5)',
+                    color: isDark ? 'rgba(99, 102, 241, 0.45)' : 'rgba(59, 130, 246, 0.5)',
                   },
                   {
                     offset: 1,
-                    color: 'rgba(59, 130, 246, 0.1)',
+                    color: isDark ? 'rgba(99, 102, 241, 0.08)' : 'rgba(59, 130, 246, 0.1)',
                   },
                 ]),
               },
               lineStyle: {
-                color: '#3b82f6',
+                color: isDark ? '#6366f1' : mainColor,
                 width: 2,
               },
               itemStyle: {
-                color: '#3b82f6',
-                borderColor: '#fff',
+                color: isDark ? '#6366f1' : mainColor,
+                borderColor: isDark ? '#0b1220' : '#fff',
                 borderWidth: 2,
               },
             },
@@ -143,7 +146,7 @@ export default function RadarChart({
     <div
       ref={containerRef}
       style={{ width: '100%', height: `${height}px` }}
-      className="rounded-lg bg-white"
+      className="rounded-lg bg-card"
     />
   );
 }

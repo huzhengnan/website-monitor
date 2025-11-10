@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import {
   GoogleAnalyticsRestClient,
   GACredentials,
@@ -7,7 +7,6 @@ import {
 import { updateSyncStatus } from './connector.service';
 import { getTrafficData, createTrafficData, updateTrafficData } from './traffic.service';
 
-const prisma = new PrismaClient();
 
 /**
  * 计算日期范围的前一天（用于增量同步）

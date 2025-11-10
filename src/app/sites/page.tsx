@@ -1,296 +1,501 @@
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { Plus } from 'lucide-react';
+import type { ActionType, ProColumns } from '@ant-design/pro-components';
+import { ProTable } from '@ant-design/pro-components';
+import { Button, Tag, Segmented, Space, Typography, message, Tooltip } from 'antd';
 import { listSites, Site, deleteSite } from '@/api/sites';
 import client from '@/api/client';
-import SitesTable from '@/components/SitesTable';
+
+type Days = 1 | 2 | 7 | 30;
 
 export default function SitesPage() {
-  const router = useRouter();
-  const [sites, setSites] = useState<Site[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(20);
-  const [total, setTotal] = useState(0);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const actionRef = useRef<ActionType | undefined>(undefined);
+  const [days, setDays] = useState<Days>(7);
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
   const [deleting, setDeleting] = useState(false);
-  const [trafficData, setTrafficData] = useState<Record<string, any>>({});
-  const [loadingTraffic, setLoadingTraffic] = useState<Record<string, boolean>>({});
-  const [selectedDays, setSelectedDays] = useState<1 | 2 | 7 | 30>(7);
-  const [gscData, setGscData] = useState<Record<string, any>>({});
-  const [loadingGsc, setLoadingGsc] = useState<Record<string, boolean>>({});
+  // 记录最近一次有效的排序器（避免列显隐后残留旧键干扰）
+  const lastSorterRef = useRef<any>(null);
+  // 受控排序状态，消除列持久化导致的排序不可切换问题
+  const [sortKey, setSortKey] = useState<string>('pv');
+  const [sortOrder, setSortOrder] = useState<'ascend' | 'descend'>('descend');
 
-  useEffect(() => {
-    const loadSites = async () => {
-      try {
-        console.log(`[Sites Page] useEffect triggered with page=${page}, pageSize=${pageSize}, selectedDays=${selectedDays}`);
-        setLoading(true);
-        const response = await listSites({ page, pageSize });
-        setSites(response.data.items);
-        setTotal(response.data.total);
-
-        // 用一个接口加载所有站点的指标数据
-        console.log(`[Sites Page] Loading all metrics for ${response.data.items.length} sites with selectedDays=${selectedDays}`);
-        loadAllMetrics(page, pageSize, selectedDays);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load sites');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadSites();
-  }, [page, pageSize, selectedDays]);
-
-  const loadAllMetrics = useCallback(async (page: number, pageSize: number, days: number) => {
-    try {
-      console.log(`[Batch Metrics] Loading metrics for page ${page}, pageSize ${pageSize}, days=${days}`);
-
-      // 一个接口返回所有站点的流量和GSC数据
-      const response = await client.get(`/sites/metrics`, {
-        params: {
-          page,
-          pageSize,
-          days,
+  const columns: ProColumns<Site & { metrics?: any }>[] = [
+    {
+      title: '关键词',
+      dataIndex: 'keyword',
+      valueType: 'text',
+      hideInTable: true,
+      fieldProps: { placeholder: '名称/域名' },
+    },
+    {
+      title: '名称',
+      dataIndex: 'name',
+      key: 'name',
+      width: 220,
+      ellipsis: true,
+      sorter: true,
+      sortDirections: ['descend', 'ascend'],
+      sortOrder: sortKey === 'name' ? sortOrder : undefined,
+      render: (_, r) => <Link href={`/sites/${r.id}`}>{r.name}</Link>,
+    },
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 160, copyable: true, ellipsis: true },
+    {
+      title: '域名',
+      dataIndex: 'domain',
+      key: 'domain',
+      width: 240,
+      copyable: true,
+      ellipsis: true,
+      sorter: true,
+      sortDirections: ['descend', 'ascend'],
+      sortOrder: sortKey === 'domain' ? sortOrder : undefined,
+    },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 120,
+      valueType: 'select',
+      valueEnum: {
+        online: { text: '在线' },
+        maintenance: { text: '维护中' },
+        offline: { text: '离线' },
+      },
+      render: (_, r) => {
+        const status = r.status;
+        const map: any = {
+          online: { color: 'green', text: '在线' },
+          maintenance: { color: 'gold', text: '维护中' },
+          offline: { color: 'red', text: '离线' },
+        };
+        return <Tag color={map[status].color}>{map[status].text}</Tag>;
+      },
+    },
+    {
+      title: '分类',
+      dataIndex: ['category', 'name'],
+      render: (_, r) => r.category?.name || '-',
+    },
+    {
+      title: '平台',
+      dataIndex: 'platform',
+      render: (_, r) => r.platform || '-',
+    },
+    {
+      title: () => (<Tag color="geekblue">GA</Tag>),
+      onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+      children: [
+        {
+          key: 'pv',
+          title: 'PV',
+          dataIndex: ['metrics', 'traffic', 'totalPv'],
+          width: 100,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'pv' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
+          render: (_, r) => r.metrics?.traffic?.totalPv ?? '-',
         },
-      });
-
-      const data = (response as any).data;
-
-      console.log(`[Batch Metrics] Loaded metrics for all sites:`, {
-        siteCount: Object.keys(data?.metrics || {}).length,
-        dateRange: data?.dateRange,
-      });
-
-      // 处理所有站点的数据
-      const newTrafficData: Record<string, any> = {};
-      const newGscData: Record<string, any> = {};
-
-      for (const [siteId, metrics] of Object.entries(data?.metrics || {})) {
-        const siteMetrics = metrics as any;
-        if (siteMetrics?.traffic) {
-          newTrafficData[siteId] = siteMetrics.traffic;
-        }
-        if (siteMetrics?.gsc) {
-          newGscData[siteId] = siteMetrics.gsc;
-        }
-      }
-
-      setTrafficData(newTrafficData);
-      setGscData(newGscData);
-    } catch (err) {
-      console.error(`Failed to load batch metrics:`, err);
-      // 设置空数据而不是让组件卡在加载状态
-      setTrafficData({});
-      setGscData({});
-    }
-  }, []);
-
-  const handleDelete = useCallback(async (id: string, name: string) => {
-    if (confirm(`确认删除站点 "${name}" 吗？`)) {
-      try {
-        await deleteSite(id);
-        setSites(prevSites => prevSites.filter((s) => s.id !== id));
-        setTotal(prevTotal => prevTotal - 1);
-      } catch (err) {
-        alert(err instanceof Error ? err.message : 'Failed to delete site');
-      }
-    }
-  }, []);
-
-  const handleBatchDelete = useCallback(async () => {
-    if (selectedIds.size === 0) {
-      alert('请先选择要删除的站点');
-      return;
-    }
-
-    if (!confirm(`确认删除 ${selectedIds.size} 个站点吗？此操作不可恢复`)) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      const idsToDelete = Array.from(selectedIds);
-
-      for (const id of idsToDelete) {
-        await deleteSite(id);
-      }
-
-      setSites(prevSites => prevSites.filter((s) => !selectedIds.has(s.id)));
-      setTotal(prevTotal => prevTotal - idsToDelete.length);
-      setSelectedIds(new Set());
-    } catch (err) {
-      alert(err instanceof Error ? err.message : '删除失败');
-    } finally {
-      setDeleting(false);
-    }
-  }, [selectedIds]);
-
-  const toggleSelectAll = useCallback(() => {
-    if (selectedIds.size === sites.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(sites.map((s) => s.id)));
-    }
-  }, [selectedIds, sites]);
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelectedIds(prevSelected => {
-      const newSelected = new Set(prevSelected);
-      if (newSelected.has(id)) {
-        newSelected.delete(id);
-      } else {
-        newSelected.add(id);
-      }
-      return newSelected;
-    });
-  }, []);
-
-  const totalPages = Math.ceil(total / pageSize);
-
-  // 按活跃用户数倒序排列站点（和 GA 后台一致）- 使用 useMemo 避免每次都重新排序
-  const sortedSites = useMemo(() => {
-    return [...sites].sort((a, b) => {
-      const activeUsersA = trafficData[a.id]?.totalActiveUsers || 0;
-      const activeUsersB = trafficData[b.id]?.totalActiveUsers || 0;
-      return activeUsersB - activeUsersA;
-    });
-  }, [sites, trafficData]);
-
-  // 缩短 UUID 显示：显示前 5 + ... + 后 5
-  const formatUuid = useCallback((uuid: string) => {
-    if (uuid.length <= 10) return uuid;
-    return `${uuid.slice(0, 5)}...${uuid.slice(-5)}`;
-  }, []);
+        {
+          key: 'uv',
+          title: 'UV',
+          dataIndex: ['metrics', 'traffic', 'totalUv'],
+          width: 100,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'uv' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
+          render: (_, r) => r.metrics?.traffic?.totalUv ?? '-',
+        },
+        {
+          key: 'au',
+          title: 'AU',
+          dataIndex: ['metrics', 'traffic', 'totalActiveUsers'],
+          width: 100,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'au' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
+          render: (_, r) => r.metrics?.traffic?.totalActiveUsers ?? '-',
+        },
+        {
+          key: 'sessions',
+          title: 'Sessions',
+          dataIndex: ['metrics', 'traffic', 'totalSessions'],
+          width: 120,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'sessions' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
+          render: (_, r) => r.metrics?.traffic?.totalSessions ?? '-',
+        },
+      ],
+    },
+    {
+      title: () => (<Tooltip title="Google Search Console 指标"><Tag color="gold">GSC</Tag></Tooltip>),
+      onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+      children: [
+        {
+          key: 'clicks',
+          title: 'Clicks',
+          dataIndex: ['metrics', 'gsc', 'totalClicks'],
+          width: 100,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'clicks' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
+          render: (_, r) => r.metrics?.gsc?.totalClicks ?? '-',
+        },
+        {
+          key: 'impr',
+          title: 'Impr',
+          dataIndex: ['metrics', 'gsc', 'totalImpressions'],
+          width: 120,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'impr' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
+          render: (_, r) => r.metrics?.gsc?.totalImpressions ?? '-',
+        },
+        {
+          key: 'ctr',
+          title: 'CTR',
+          dataIndex: ['metrics', 'gsc', 'avgCtr'],
+          width: 100,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'ctr' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
+          render: (_, r) => (r.metrics?.gsc?.avgCtr ?? '-') as any,
+        },
+        {
+          key: 'avgpos',
+          title: 'AvgPos',
+          dataIndex: ['metrics', 'gsc', 'avgPosition'],
+          width: 100,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'avgpos' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
+          render: (_, r) => (r.metrics?.gsc?.avgPosition ?? '-') as any,
+        },
+        {
+          key: 'backlinks',
+          title: '外链数量',
+          dataIndex: ['metrics', 'backlinksCount'],
+          width: 110,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          sortOrder: sortKey === 'backlinks' ? sortOrder : undefined,
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
+          render: (_, r) => (
+            <Link href={`/sites/${r.id}?tab=backlinks`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium">
+              {r.metrics?.backlinksCount ?? '-'}
+            </Link>
+          ),
+        },
+      ],
+    },
+    {
+      title: '创建时间',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      valueType: 'date',
+      width: 140,
+      sorter: true,
+      sortDirections: ['descend', 'ascend'],
+      sortOrder: sortKey === 'createdAt' ? sortOrder : undefined,
+    },
+    {
+      title: '操作',
+      valueType: 'option',
+      width: 140,
+      render: (_, r) => [
+        <Link key="open" href={`/sites/${r.id}`}>详情</Link>,
+        <a
+          key="del"
+          onClick={async () => {
+            try {
+              setDeleting(true);
+              await deleteSite(r.id);
+              message.success('已删除');
+              actionRef.current?.reload();
+            } catch (e: any) {
+              message.error(e?.message || '删除失败');
+            } finally {
+              setDeleting(false);
+            }
+          }}
+        >删除</a>,
+      ],
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">我的站点</h1>
-          <p className="text-gray-600 mt-1">管理和查看所有网站</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700">时间范围：</label>
-            <select
-              value={selectedDays}
-              onChange={(e) => {
-                const newDays = parseInt(e.target.value) as 1 | 2 | 7 | 30;
-                console.log('[Sites Page] Changing selectedDays from', selectedDays, 'to', newDays);
-                console.log('[Sites Page] Clearing all data states before update');
-                setSelectedDays(newDays);
-                setTrafficData({});
-                setGscData({});
-                setLoadingTraffic({});
-                setLoadingGsc({});
-                console.log('[Sites Page] Data states cleared, waiting for useEffect to refetch...');
-              }}
-              className="px-3 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:border-gray-400 focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer transition"
-            >
-              <option value={1}>今天</option>
-              <option value={2}>昨天</option>
-              <option value={7}>最近 7 天</option>
-              <option value={30}>最近 30 天</option>
-            </select>
-          </div>
-          <Link
-            href="/sites/new"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition"
-          >
-            <Plus className="w-4 h-4" />
-            新增站点
-          </Link>
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="text-gray-600">加载中...</div>
-        </div>
-      ) : error ? (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800">
-          <p className="font-semibold">加载失败</p>
-          <p className="text-sm">{error}</p>
-        </div>
-      ) : sites.length === 0 ? (
-        <div className="bg-gray-50 rounded-lg p-12 text-center">
-          <p className="text-gray-600 text-lg">还没有站点，点击上方按钮添加吧</p>
-        </div>
-      ) : (
-        <>
-          {/* Batch Actions */}
-          {selectedIds.size > 0 && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <span className="text-blue-900 font-semibold">
-                  已选中 {selectedIds.size} 个站点
-                </span>
-              </div>
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setSelectedIds(new Set())}
-                  className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  取消选择
-                </button>
-                <button
-                  onClick={handleBatchDelete}
-                  disabled={deleting}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed"
-                >
-                  {deleting ? '删除中...' : '批量删除'}
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Sites Table using TanStack Table */}
-          <SitesTable
-            sites={sortedSites}
-            trafficData={trafficData}
-            gscData={gscData}
-            loadingTraffic={loadingTraffic}
-            loadingGsc={loadingGsc}
-            selectedIds={selectedIds}
-            copiedId={copiedId}
-            onSelectAll={toggleSelectAll}
-            onSelect={toggleSelect}
-            onDelete={handleDelete}
-            setCopiedId={setCopiedId}
-          />
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-center gap-2">
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                上一页
-              </button>
-              <span className="text-gray-600 text-sm">
-                第 {page} / {totalPages} 页
-              </span>
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
-                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-              >
-                下一页
-              </button>
-            </div>
-          )}
-        </>
+    <ProTable<Site & { metrics?: any }>
+      rowKey="id"
+      columns={columns}
+      actionRef={actionRef}
+      cardBordered
+      pagination={{ pageSize: 20 }}
+      columnsState={{ persistenceKey: 'sites-columns-v2', persistenceType: 'localStorage' }}
+      sticky
+      scroll={{ x: 1400 }}
+      columnEmptyText="-"
+      rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
+      options={{ setting: { draggable: true }, reload: true, density: true, fullScreen: true }}
+      tableAlertRender={({ selectedRowKeys }) => (
+        <Space>
+          <span>已选 {selectedRowKeys.length} 项</span>
+        </Space>
       )}
-    </div>
+      tableAlertOptionRender={() => [
+        <a key="clear" onClick={() => setSelectedRowKeys([])}>清空选择</a>,
+        <a
+          key="batch-del"
+          onClick={async () => {
+            if (selectedRowKeys.length === 0) return;
+            try {
+              setDeleting(true);
+              for (const id of selectedRowKeys) {
+                await deleteSite(String(id));
+              }
+              message.success(`已删除 ${selectedRowKeys.length} 项`);
+              setSelectedRowKeys([]);
+              actionRef.current?.reload();
+            } catch (e: any) {
+              message.error(e?.message || '删除失败');
+            } finally {
+              setDeleting(false);
+            }
+          }}
+        >批量删除</a>,
+      ]}
+      headerTitle={
+        <Space>
+          <span>我的站点</span>
+          <Typography.Text type="secondary">时间范围</Typography.Text>
+          <Segmented
+            size="small"
+            value={days}
+            options={[
+              { label: '今天', value: 1 },
+              { label: '昨天', value: 2 },
+              { label: '7天', value: 7 },
+              { label: '30天', value: 30 },
+            ]}
+            onChange={(v) => {
+              setDays(v as Days);
+              actionRef.current?.reload();
+            }}
+          />
+        </Space>
+      }
+      toolBarRender={() => [
+        <Link key="new" href="/sites/new">
+          <Button type="primary">新增站点</Button>
+        </Link>,
+        <Button
+          key="sync-backlinks"
+          onClick={async () => {
+            const hide = message.loading('正在同步外链来源…', 0);
+            try {
+              const r: any = await client.post('/ga-sources/sync', undefined, { params: { days } });
+              if (r?.success) {
+                message.success('同步完成');
+                actionRef.current?.reload();
+              } else {
+                message.error(r?.error || '同步失败');
+              }
+            } catch (e: any) {
+              message.error(e?.message || '同步失败');
+            } finally {
+              hide();
+            }
+          }}
+        >同步外链来源</Button>,
+        <Button key="export" onClick={() => { window.open('/api/sites/export', '_blank', 'noopener,noreferrer'); }}>导出 CSV</Button>,
+      ]}
+      // 记录变更时的排序器，确保 request 使用最近一次点击
+      onChange={(_, __, sorterArg) => {
+        // 统一解析 sorter（支持单个、数组、映射）
+        const normalizeKey = (k: string) => {
+          const s = (k || '').toLowerCase();
+          if (s === 'pv' || s.includes('totalpv')) return 'pv';
+          if (s === 'uv' || s.includes('totaluv')) return 'uv';
+          if (s === 'au' || s.includes('totalactiveusers')) return 'au';
+          if (s === 'sessions' || s.includes('totalsessions')) return 'sessions';
+          if (s === 'clicks' || s.includes('totalclicks')) return 'clicks';
+          if (s === 'impr' || s.includes('totalimpressions')) return 'impr';
+          if (s === 'ctr' || s.includes('avgctr')) return 'ctr';
+          if (s === 'avgpos' || s.includes('avgposition')) return 'avgpos';
+          if (s === 'backlinks' || s.includes('backlink')) return 'backlinks';
+          if (s === 'createdat' || s === 'created_at') return 'createdAt';
+          return s || 'pv';
+        };
+        let order: 'ascend' | 'descend' | undefined;
+        let key: string | undefined;
+        let s: any = sorterArg as any;
+        if (Array.isArray(s)) {
+          const withOrder = s.filter((i) => i?.order);
+          s = withOrder.length > 0 ? withOrder[withOrder.length - 1] : s[s.length - 1];
+        }
+        if (s && typeof s === 'object' && ('order' in s || 'columnKey' in s || 'field' in s)) {
+          key = String(s.columnKey || s.field || '').toLowerCase();
+          order = s.order as any;
+        } else if (s && typeof s === 'object') {
+          // 映射形态：{ 'metrics,traffic,totalUv': 'ascend' }
+          for (const [k, v] of Object.entries(s)) {
+            if (v === 'ascend' || v === 'descend') { key = k; order = v as any; }
+          }
+        }
+        if (!order || !key) return; // 列显隐等情况可能传入空 sorter
+        const nk = normalizeKey(key);
+        setSortKey(nk);
+        setSortOrder(order);
+        lastSorterRef.current = { columnKey: nk, order };
+        // 不强制 reload，交由 ProTable 内部触发 request
+      }}
+      request={async (params, sorter) => {
+        const page = Number(params.current) || 1;
+        const pageSize = Number(params.pageSize) || 20;
+        const filters: any = {};
+        if ((params as any).keyword) filters.search = (params as any).keyword;
+        if ((params as any).status) filters.status = (params as any).status;
+        const res = await listSites({ page, pageSize, ...filters });
+        const items = res.data.items;
+        // 解析排序键（兼容对象/映射两种形态）
+        const parseSorter = (s: any): { key: string; order: 'ascend' | 'descend'; had: boolean } => {
+          if (!s) return { key: 'pv', order: 'descend', had: false };
+          // 形态1（Table SorterResult）：{ order, columnKey, field }
+          if (
+            typeof s === 'object' &&
+            (Object.prototype.hasOwnProperty.call(s, 'order') ||
+              Object.prototype.hasOwnProperty.call(s, 'columnKey') ||
+              Object.prototype.hasOwnProperty.call(s, 'field'))
+          ) {
+            const k = (s.columnKey || s.field || 'pv') as string;
+            const o = ((s.order as any) || 'descend') as 'ascend' | 'descend';
+            return { key: String(k), order: o, had: Boolean(s.order) };
+          }
+          // 形态2（ProTable 推荐）：{ [columnKey]: 'ascend'|'descend', ... }
+          let foundKey: string | undefined;
+          let foundOrder: 'ascend' | 'descend' | undefined;
+          for (const [k, v] of Object.entries(s)) {
+            if (v === 'ascend' || v === 'descend') {
+              // 取最后一个有序的键，优先用户最新点击
+              foundKey = k;
+              foundOrder = v as any;
+            } else if (typeof v === 'object' && (v as any)?.order) {
+              foundKey = k;
+              foundOrder = (v as any).order;
+            }
+          }
+          if (foundKey && foundOrder) return { key: String(foundKey), order: foundOrder, had: true };
+          return { key: 'pv', order: 'descend', had: false };
+        };
+        // 优先使用受控状态（sortKey/sortOrder）
+        const preferred = lastSorterRef.current ?? sorter;
+        const parsed = parseSorter(preferred);
+        const rawKeyServer = sortKey || parsed.key;
+        const sortOrderServer = (sortOrder as any) || parsed.order;
+        const hadSorter = Boolean(sortKey && sortOrder) || parsed.had;
+        const normalizeKey = (k: string) => {
+          const s = (k || '').toLowerCase();
+          if (s === 'pv' || s.includes('totalpv')) return 'pv';
+          if (s === 'uv' || s.includes('totaluv')) return 'uv';
+          if (s === 'au' || s.includes('totalactiveusers')) return 'au';
+          if (s === 'sessions' || s.includes('totalsessions')) return 'sessions';
+          if (s === 'clicks' || s.includes('totalclicks')) return 'clicks';
+          if (s === 'impr' || s.includes('totalimpressions')) return 'impr';
+          if (s === 'ctr' || s.includes('avgctr')) return 'ctr';
+          if (s === 'avgpos' || s.includes('avgposition')) return 'avgpos';
+          if (s === 'backlinks' || s.includes('backlink')) return 'backlinks';
+          if (s === 'createdat' || s === 'created_at') return 'createdat';
+          return s; // name/domain/createdat 等
+        };
+        const sortFieldServer = normalizeKey(String(rawKeyServer));
+        const sortOrderParam = sortOrderServer === 'ascend' ? 'asc' : sortOrderServer === 'descend' ? 'desc' : 'desc';
+        // 调试日志（仅开发）
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[Sites request] sorter raw:', sorter);
+          console.log('[Sites request] parsed:', { sortFieldServer, sortOrderParam, hadSorter, state: { sortKey, sortOrder } });
+        }
+
+        // 批量加载指标（服务端排序，仅对指标类字段生效）
+        const metricKeys = new Set(['pv','uv','au','sessions','clicks','impr','ctr','avgpos','backlinks']);
+        const metricsRes: any = await client.get(`/sites/metrics`, {
+          params: { page, pageSize, days }
+        });
+        const metricsMap = (metricsRes as any).data?.metrics || {};
+        let data = (items as Site[]).map((s: Site) => ({ ...s, metrics: (metricsMap as any)[s.id] }));
+        if (metricKeys.has(sortFieldServer) && hadSorter) {
+          // 在客户端按指标字段排序（当前页内排序，避免受持久化状态影响）
+          const orderAsc = sortOrderParam === 'asc';
+          const getVal = (row: any) => {
+            const m = row.metrics || {};
+            switch (sortFieldServer) {
+              case 'pv': return m?.traffic?.totalPv ?? null;
+              case 'uv': return m?.traffic?.totalUv ?? null;
+              case 'au': return m?.traffic?.totalActiveUsers ?? null;
+              case 'sessions': return m?.traffic?.totalSessions ?? null;
+              case 'clicks': return m?.gsc?.totalClicks ?? null;
+              case 'impr': return m?.gsc?.totalImpressions ?? null;
+              case 'ctr': return Number(m?.gsc?.avgCtr ?? 0);
+              case 'avgpos': return Number(m?.gsc?.avgPosition ?? 0);
+              case 'backlinks': return Number(m?.backlinksCount ?? 0);
+              default: return null;
+            }
+          };
+          data = data.sort((a, b) => {
+            const av = getVal(a);
+            const bv = getVal(b);
+            if (av == null && bv == null) return 0;
+            if (av == null) return 1;
+            if (bv == null) return -1;
+            if (typeof av === 'number' && typeof bv === 'number') return orderAsc ? av - bv : bv - av;
+            const as = String(av); const bs = String(bv);
+            return orderAsc ? as.localeCompare(bs) : bs.localeCompare(as);
+          });
+        } else if (!metricKeys.has(sortFieldServer) && hadSorter) {
+          // 非指标字段，本地排序兜底（name/domain/createdAt）
+          const key = sortFieldServer;
+          const orderAsc = sortOrderParam === 'asc';
+          data = data.sort((a: any, b: any) => {
+            let av: any;
+            let bv: any;
+            if (key === 'name') { av = a.name; bv = b.name; }
+            else if (key === 'domain') { av = a.domain; bv = b.domain; }
+            else if (key === 'createdat' || key === 'created_at' || key === 'createdtime') { av = new Date(a.createdAt).getTime(); bv = new Date(b.createdAt).getTime(); }
+            else { return 0; }
+            if (av == null && bv == null) return 0;
+            if (av == null) return 1;
+            if (bv == null) return -1;
+            if (typeof av === 'number' && typeof bv === 'number') return orderAsc ? av - bv : bv - av;
+            const as = String(av); const bs = String(bv);
+            return orderAsc ? as.localeCompare(bs) : bs.localeCompare(as);
+          });
+        } else if (!hadSorter) {
+          // 默认：按 PV 降序（仅当用户未主动排序时）
+          data = data.sort((a: any, b: any) => {
+            const av = a?.metrics?.traffic?.totalPv ?? 0;
+            const bv = b?.metrics?.traffic?.totalPv ?? 0;
+            return bv - av;
+          });
+        }
+
+        return { data, success: true, total: res.data.total } as any;
+      }}
+    />
   );
 }

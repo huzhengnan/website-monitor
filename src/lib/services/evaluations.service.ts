@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/prisma';
 import {
   CreateEvaluationRequest,
   UpdateEvaluationRequest,
@@ -9,7 +9,6 @@ import {
   ValidationError,
 } from '../types';
 
-const prisma = new PrismaClient();
 
 /**
  * Get evaluations for a specific site

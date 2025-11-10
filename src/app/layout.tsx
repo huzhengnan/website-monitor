@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Layout from "@/components/Layout";
+import AntdProvider from "@/components/AntdProvider";
+import AntdStyleRegistry from "@/components/AntdStyleRegistry";
 
 export const metadata: Metadata = {
   title: "网站管理平台",
@@ -15,7 +17,11 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body>
-        <Layout>{children}</Layout>
+        <AntdStyleRegistry>
+          <AntdProvider>
+            <Layout>{children}</Layout>
+          </AntdProvider>
+        </AntdStyleRegistry>
       </body>
     </html>
   );

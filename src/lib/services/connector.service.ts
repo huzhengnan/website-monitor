@@ -1,7 +1,5 @@
-import { PrismaClient } from '@prisma/client';
 import { NotFoundError, ValidationError } from '../types';
-
-const prisma = new PrismaClient();
+import { prisma } from '@/lib/prisma';
 
 export interface CreateConnectorRequest {
   siteId: string;

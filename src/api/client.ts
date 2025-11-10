@@ -29,7 +29,9 @@ client.interceptors.response.use(
   },
   (error) => {
     if (error.response) {
-      console.error(`[API Error] ${error.response.status} - ${error.response.config.url} - ${error.response.data?.error || 'No error message'}`);
+      const url = error.response?.config?.url || '';
+      const msg = error.response?.data?.error || error.response?.statusText || 'No error message';
+      console.error(`[API Error] ${error.response.status} - ${url} - ${msg}`);
     } else if (error.request) {
       console.error('[API Error] No response from server');
     } else {

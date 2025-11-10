@@ -41,6 +41,8 @@ export async function GET(request: NextRequest) {
     const siteIdsParam = searchParams.get('siteIds');
     const pageParam = searchParams.get('page');
     const pageSizeParam = searchParams.get('pageSize');
+    const sortFieldParam = (searchParams.get('sortField') || '').toLowerCase();
+    const sortOrderParam = (searchParams.get('sortOrder') || '').toLowerCase(); // 'asc' | 'desc'
 
     // 支持两种调用方式：
     // 1. 指定具体的站点: ?days=7&siteIds=id1,id2,id3
@@ -97,7 +99,7 @@ export async function GET(request: NextRequest) {
     const end = new Date(endDate + 'T23:59:59Z');
 
     // Fetch all traffic and GSC data for all sites in parallel
-    const [allTrafficData, allGscData] = await Promise.all([
+    const [allTrafficData, allGscData, allSources, allBacklinkSubmissions] = await Promise.all([
       prisma.trafficData.findMany({
         where: {
           siteId: { in: siteIds },
@@ -135,6 +137,27 @@ export async function GET(request: NextRequest) {
           totalImpressions: true,
           avgCtr: true,
           avgPosition: true,
+        },
+      }),
+      prisma.trafficSource.findMany({
+        where: {
+          traffic: {
+            siteId: { in: siteIds },
+            date: { gte: start, lte: end },
+          },
+        },
+        select: {
+          source: true,
+          traffic: { select: { siteId: true } },
+        },
+      }),
+      prisma.backlinkSubmission.groupBy({
+        by: ['siteId'],
+        where: {
+          siteId: { in: siteIds },
+        },
+        _count: {
+          id: true,
         },
       }),
     ]);
@@ -249,10 +272,57 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    // Get actual backlink submission count from database
+    const backlinkCountBySite = new Map<string, number>();
+    for (const record of allBacklinkSubmissions) {
+      backlinkCountBySite.set(record.siteId, record._count.id);
+    }
+    for (const siteId of siteIds) {
+      const metrics = metricsMap.get(siteId)!;
+      metrics.backlinksCount = backlinkCountBySite.get(siteId) || 0; // actual backlink submissions count
+    }
+
     // Convert map to object for response
     const metricsData: Record<string, any> = {};
     for (const [siteId, metrics] of metricsMap.entries()) {
       metricsData[siteId] = metrics;
+    }
+
+    // Optional server-side order by sortField
+    const sortableKeys = new Set(['pv','uv','au','sessions','clicks','impr','ctr','avgpos','backlinks']);
+    let order: string[] | undefined = undefined;
+    if (sortFieldParam && sortableKeys.has(sortFieldParam)) {
+      const getVal = (siteId: string) => {
+        const m = metricsMap.get(siteId);
+        if (!m) return null;
+        switch (sortFieldParam) {
+          case 'pv': return m.traffic?.totalPv ?? null;
+          case 'uv': return m.traffic?.totalUv ?? null;
+          case 'au': return m.traffic?.totalActiveUsers ?? null;
+          case 'sessions': return m.traffic?.totalSessions ?? null;
+          case 'clicks': return m.gsc?.totalClicks ?? null;
+          case 'impr': return m.gsc?.totalImpressions ?? null;
+          case 'ctr': return Number(m.gsc?.avgCtr ?? 0);
+          case 'avgpos': return Number(m.gsc?.avgPosition ?? 0);
+          case 'backlinks': return Number(m.backlinksCount ?? 0);
+          default: return null;
+        }
+      };
+      const ids = [...metricsMap.keys()];
+      ids.sort((a, b) => {
+        const av = getVal(a);
+        const bv = getVal(b);
+        if (av == null && bv == null) return 0;
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        if (typeof av === 'number' && typeof bv === 'number') {
+          return sortOrderParam === 'asc' ? av - bv : bv - av;
+        }
+        const as = String(av);
+        const bs = String(bv);
+        return sortOrderParam === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
+      });
+      order = ids;
     }
 
     return NextResponse.json({
@@ -263,6 +333,7 @@ export async function GET(request: NextRequest) {
           endDate,
         },
         metrics: metricsData,
+        order,
       },
     });
   } catch (error: any) {

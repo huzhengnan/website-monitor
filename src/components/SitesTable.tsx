@@ -111,7 +111,7 @@ function SitesTableComponent({
             onChange={(e) => {
               onSelectAll(e.target.checked);
             }}
-            className="w-4 h-4 rounded border-gray-300 cursor-pointer"
+            className="w-4 h-4 rounded border-border cursor-pointer"
           />
         </div>
       ),
@@ -121,7 +121,7 @@ function SitesTableComponent({
             type="checkbox"
             checked={row.original.isSelected}
             onChange={() => row.original.onSelect(row.original.site.id)}
-            className="w-4 h-4 rounded border-gray-300 cursor-pointer"
+            className="w-4 h-4 rounded border-border cursor-pointer"
           />
         </div>
       ),
@@ -159,7 +159,7 @@ function SitesTableComponent({
         };
         return (
           <div className="flex items-center gap-1">
-            <span className="text-gray-600 truncate font-mono text-xs" title={row.original.site.id}>
+            <span className="text-muted-foreground truncate font-mono text-xs" title={row.original.site.id}>
               {formatUuid(row.original.site.id)}
             </span>
             <button
@@ -169,10 +169,10 @@ function SitesTableComponent({
                 setTimeout(() => row.original.setCopiedId(null), 2000);
               }}
               title="复制站点 ID"
-              className="text-gray-500 hover:text-indigo-600 transition-colors flex-shrink-0"
+              className="text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex-shrink-0"
             >
               {copiedId === row.original.site.id ? (
-                <Check className="w-4 h-4 text-green-600" />
+                <Check className="w-4 h-4 text-green-500" />
               ) : (
                 <Copy className="w-4 h-4" />
               )}
@@ -195,10 +195,10 @@ function SitesTableComponent({
           <span
             className={`px-2 py-1 rounded text-xs font-semibold whitespace-nowrap inline-block ${
               status === 'online'
-                ? 'bg-green-100 text-green-800'
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
                 : status === 'maintenance'
-                  ? 'bg-yellow-100 text-yellow-800'
-                  : 'bg-red-100 text-red-800'
+                  ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300'
+                  : 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300'
             }`}
           >
             {status === 'online' ? '在线' : status === 'maintenance' ? '维护中' : '离线'}
@@ -217,9 +217,9 @@ function SitesTableComponent({
       cell: ({ row }) => (
         <div className="text-center">
           {row.original.loadingTraffic ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.traffic?.totalActiveUsers || 0}
             </div>
           )}
@@ -237,9 +237,9 @@ function SitesTableComponent({
       cell: ({ row }) => (
         <div className="text-center">
           {row.original.loadingTraffic ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.traffic?.totalNewUsers || 0}
             </div>
           )}
@@ -257,9 +257,9 @@ function SitesTableComponent({
       cell: ({ row }) => (
         <div className="text-center">
           {row.original.loadingTraffic ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.traffic?.totalEvents || 0}
             </div>
           )}
@@ -277,9 +277,9 @@ function SitesTableComponent({
       cell: ({ row }) => (
         <div className="text-center">
           {row.original.loadingTraffic ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.traffic?.totalSessions || 0}
             </div>
           )}
@@ -297,9 +297,9 @@ function SitesTableComponent({
       cell: ({ row }) => (
         <div className="text-center">
           {row.original.loadingTraffic ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.traffic?.totalPv || 0}
             </div>
           )}
@@ -313,13 +313,13 @@ function SitesTableComponent({
     // GSC: 点击数
     columnHelper.accessor((row) => row.gsc?.totalClicks || 0, {
       id: 'clicks',
-      header: () => <div className="text-blue-700">点击数</div>,
+      header: () => <div className="text-indigo-600 dark:text-indigo-400">点击数</div>,
       cell: ({ row }) => (
-        <div className="text-center bg-blue-50">
+        <div className="text-center bg-indigo-50 dark:bg-indigo-900/20">
           {row.original.loadingGsc ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.gsc?.totalClicks || 0}
             </div>
           )}
@@ -333,13 +333,13 @@ function SitesTableComponent({
     // GSC: 展示数
     columnHelper.accessor((row) => row.gsc?.totalImpressions || 0, {
       id: 'impressions',
-      header: () => <div className="text-blue-700">展示数</div>,
+      header: () => <div className="text-indigo-600 dark:text-indigo-400">展示数</div>,
       cell: ({ row }) => (
-        <div className="text-center bg-blue-50">
+        <div className="text-center bg-indigo-50 dark:bg-indigo-900/20">
           {row.original.loadingGsc ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.gsc?.totalImpressions || 0}
             </div>
           )}
@@ -353,13 +353,13 @@ function SitesTableComponent({
     // GSC: CTR
     columnHelper.accessor((row) => row.gsc?.avgCtr || 0, {
       id: 'ctr',
-      header: () => <div className="text-blue-700">CTR</div>,
+      header: () => <div className="text-indigo-600 dark:text-indigo-400">CTR</div>,
       cell: ({ row }) => (
-        <div className="text-center bg-blue-50">
+        <div className="text-center bg-indigo-50 dark:bg-indigo-900/20">
           {row.original.loadingGsc ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.gsc?.avgCtr ? row.original.gsc.avgCtr.toFixed(2) : 0}%
             </div>
           )}
@@ -373,13 +373,13 @@ function SitesTableComponent({
     // GSC: 排名
     columnHelper.accessor((row) => row.gsc?.avgPosition || 0, {
       id: 'position',
-      header: () => <div className="text-blue-700">排名</div>,
+      header: () => <div className="text-indigo-600 dark:text-indigo-400">排名</div>,
       cell: ({ row }) => (
-        <div className="text-center bg-blue-50">
+        <div className="text-center bg-indigo-50 dark:bg-indigo-900/20">
           {row.original.loadingGsc ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : (
-            <div className="font-semibold text-gray-900 text-sm">
+            <div className="font-semibold text-foreground text-sm">
               {row.original.gsc?.avgPosition ? row.original.gsc.avgPosition.toFixed(1) : 0}
             </div>
           )}
@@ -397,11 +397,11 @@ function SitesTableComponent({
       cell: ({ row }) => (
         <div className="text-center">
           {row.original.loadingTraffic ? (
-            <div className="text-gray-500 text-xs">加载中</div>
+            <div className="text-muted-foreground text-xs">加载中</div>
           ) : row.original.traffic?.dailyData && row.original.traffic.dailyData.length > 0 ? (
             <TrendChart data={row.original.traffic.dailyData} includeGSC={false} />
           ) : (
-            <div className="text-gray-500 text-xs">无数据</div>
+            <div className="text-muted-foreground text-xs">无数据</div>
           )}
         </div>
       ),
@@ -418,7 +418,7 @@ function SitesTableComponent({
         <div className="flex items-center justify-center gap-2">
           <Link
             href={`/sites/${row.original.site.id}`}
-            className="text-indigo-600 hover:text-indigo-700"
+            className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300"
             title="查看详情"
           >
             <ExternalLink className="w-4 h-4" />
@@ -445,17 +445,17 @@ function SitesTableComponent({
   });
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+    <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse">
-          <thead className="bg-gray-50 sticky top-0 z-10">
+          <thead className="bg-muted/30 sticky top-0 z-10">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="border-b border-gray-200">
+              <tr key={headerGroup.id} className="border-b border-border">
                 {headerGroup.headers.map((header) => (
                   <th
                     key={header.id}
                     style={{ width: header.getSize() }}
-                    className="px-3 py-3 text-left text-xs font-semibold text-gray-700 uppercase whitespace-nowrap border-r border-gray-200 last:border-r-0"
+                    className="px-3 py-3 text-left text-xs font-semibold text-muted-foreground uppercase whitespace-nowrap border-r border-border last:border-r-0"
                   >
                     {header.isPlaceholder
                       ? null
@@ -465,14 +465,14 @@ function SitesTableComponent({
               </tr>
             ))}
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="divide-y divide-border">
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50 transition-colors">
+              <tr key={row.id} className="hover:bg-muted/30 transition-colors">
                 {row.getVisibleCells().map((cell) => (
                   <td
                     key={cell.id}
                     style={{ width: cell.column.getSize() }}
-                    className="px-3 py-4 border-r border-gray-200 last:border-r-0 whitespace-nowrap"
+                    className="px-3 py-4 border-r border-border last:border-r-0 whitespace-nowrap"
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>

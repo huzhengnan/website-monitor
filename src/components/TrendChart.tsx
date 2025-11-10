@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useTheme } from './ThemeContext';
 
 interface DailyData {
   date: string;
@@ -25,6 +26,7 @@ export default function TrendChart({ data, includeGSC = false }: TrendChartProps
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [mouseX, setMouseX] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const { isDark } = useTheme();
 
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     if (!svgRef.current) return;
@@ -94,6 +96,10 @@ export default function TrendChart({ data, includeGSC = false }: TrendChartProps
 
   const hoveredPoint = hoveredIndex !== null ? points[hoveredIndex] : null;
 
+  const mainColor = isDark ? '#6366f1' : '#3b82f6';
+  const secondaryColor = isDark ? '#f59e0b' : '#ef4444';
+  const gridColor = isDark ? '#475569' : '#cbd5e1';
+
   return (
     <div className="relative inline-block">
       <svg
@@ -111,12 +117,12 @@ export default function TrendChart({ data, includeGSC = false }: TrendChartProps
         {/* 渐变区域 */}
         <defs>
           <linearGradient id="gradient-pv" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+            <stop offset="0%" stopColor={mainColor} stopOpacity="0.2" />
+            <stop offset="100%" stopColor={mainColor} stopOpacity="0" />
           </linearGradient>
           <linearGradient id="gradient-au" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="#ef4444" stopOpacity="0.2" />
-            <stop offset="100%" stopColor="#ef4444" stopOpacity="0" />
+            <stop offset="0%" stopColor={secondaryColor} stopOpacity="0.2" />
+            <stop offset="100%" stopColor={secondaryColor} stopOpacity="0" />
           </linearGradient>
         </defs>
 
@@ -129,7 +135,7 @@ export default function TrendChart({ data, includeGSC = false }: TrendChartProps
         {/* 主指标折线 */}
         <path
           d={pathData}
-          stroke="#3b82f6"
+          stroke={mainColor}
           strokeWidth="2"
           fill="none"
           strokeLinecap="round"
@@ -139,7 +145,7 @@ export default function TrendChart({ data, includeGSC = false }: TrendChartProps
         {/* 副指标折线 */}
         <path
           d={secondaryPathData}
-          stroke="#ef4444"
+          stroke={secondaryColor}
           strokeWidth="2"
           fill="none"
           strokeLinecap="round"
@@ -153,7 +159,7 @@ export default function TrendChart({ data, includeGSC = false }: TrendChartProps
             cx={p.x}
             cy={p.y}
             r={hoveredIndex === i ? '3.5' : '2.5'}
-            fill="#3b82f6"
+            fill={mainColor}
             opacity={hoveredIndex === i ? '1' : '0.8'}
             className="transition-all"
           />
@@ -166,7 +172,7 @@ export default function TrendChart({ data, includeGSC = false }: TrendChartProps
             y1={padding}
             x2={mouseX}
             y2={padding + chartHeight}
-            stroke="#999"
+            stroke={gridColor}
             strokeWidth="1"
             opacity="0.6"
           />

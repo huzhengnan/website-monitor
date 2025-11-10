@@ -21,27 +21,27 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
+    <div className="min-h-screen bg-background py-8 px-4">
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">设置</h1>
-          <p className="text-gray-600 mt-2">管理你的分析和数据源连接</p>
+          <h1 className="text-3xl font-bold text-foreground">设置</h1>
+          <p className="text-muted-foreground mt-2">管理你的分析和数据源连接</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6">
           {/* Google Search Console 同步部分 */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6">
             <h2 className="text-xl font-semibold mb-4">Google Search Console 数据同步</h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-muted-foreground mb-6">
               为所有站点自动同步 GSC 搜索分析数据（点击数、展示数、排名等）。
             </p>
             <GSCSyncManager />
           </div>
 
           {/* Google Analytics 连接器部分 */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-card text-card-foreground rounded-lg shadow-sm border border-border p-6">
             <h2 className="text-xl font-semibold mb-4">Google Analytics 配置</h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-muted-foreground mb-6">
               连接你的 Google Analytics 账户，自动同步站点数据。
             </p>
 
@@ -52,12 +52,12 @@ export default function SettingsPage() {
                   onClick={() => setSetupMode('auto-import')}
                   className={`px-4 py-3 rounded-lg border-2 transition ${
                     setupMode === 'auto-import'
-                      ? 'border-green-600 bg-green-50'
-                      : 'border-gray-300 hover:border-gray-400'
+                      ? 'border-green-600 bg-green-50 dark:bg-green-900/20'
+                      : 'border-border hover:border-foreground'
                   }`}
                 >
                   <div className="font-semibold text-sm">✨ 自动导入所有 GA 站点（新用户推荐）</div>
-                  <div className="text-xs text-gray-600 mt-1">
+                  <div className="text-xs text-muted-foreground mt-1">
                     自动为每个 GA4 属性创建站点并生成 UUID，一步完成
                   </div>
                 </button>
@@ -67,12 +67,12 @@ export default function SettingsPage() {
                     onClick={() => setSetupMode('quick')}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition ${
                       setupMode === 'quick'
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-300 hover:border-gray-400'
+                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20'
+                        : 'border-border hover:border-foreground'
                     }`}
                   >
                     <div className="font-semibold text-sm">🚀 快速同步已有站点</div>
-                    <div className="text-xs text-gray-600 mt-1">
+                    <div className="text-xs text-muted-foreground mt-1">
                       为已创建的站点同步 GA 属性
                     </div>
                   </button>
@@ -80,12 +80,12 @@ export default function SettingsPage() {
                     onClick={() => setSetupMode('manual')}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition ${
                       setupMode === 'manual'
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-300 hover:border-gray-400'
+                        ? 'border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20'
+                        : 'border-border hover:border-foreground'
                     }`}
                   >
                     <div className="font-semibold text-sm">⚙️ 手动配置</div>
-                    <div className="text-xs text-gray-600 mt-1">
+                    <div className="text-xs text-muted-foreground mt-1">
                       逐个配置每个 GA 属性
                     </div>
                   </button>
@@ -141,9 +141,9 @@ export default function SettingsPage() {
 
             {/* 建议提示 */}
             {!selectedSiteId && (
-              <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg">
+              <div className="text-center py-8 text-muted-foreground bg-muted/30 rounded-lg">
                 <p>请输入站点 ID 来配置 Analytics 连接</p>
-                <Link href="/" className="text-blue-600 hover:underline mt-2 inline-block">
+                <Link href="/" className="text-indigo-600 dark:text-indigo-400 hover:underline mt-2 inline-block">
                   返回首页查看站点
                 </Link>
               </div>
@@ -151,9 +151,9 @@ export default function SettingsPage() {
           </div>
 
           {/* 常见问题和说明 */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-amber-900 mb-4">📚 帮助中心</h3>
-            <div className="space-y-4 text-sm text-amber-800">
+          <div className="rounded-lg p-6 bg-amber-50 border border-amber-200 dark:bg-amber-900/20 dark:border-amber-900/40">
+            <h3 className="text-lg font-semibold text-foreground mb-4">📚 帮助中心</h3>
+            <div className="space-y-4 text-sm text-amber-900 dark:text-amber-200/90">
               <div>
                 <h4 className="font-semibold mb-2">数据同步方式</h4>
                 <ul className="space-y-2 ml-2">
@@ -175,7 +175,7 @@ export default function SettingsPage() {
                 <h4 className="font-semibold mb-2">同步的数据类型</h4>
                 <div className="grid grid-cols-2 gap-3 ml-2">
                   <div>
-                    <strong className="text-amber-900">GA 数据：</strong>
+                    <strong className="text-amber-900 dark:text-amber-200">GA 数据：</strong>
                     <ul className="text-xs list-disc list-inside mt-1">
                       <li>活跃用户数、新用户数</li>
                       <li>事件数、Sessions、PV、UV</li>
@@ -183,7 +183,7 @@ export default function SettingsPage() {
                     </ul>
                   </div>
                   <div>
-                    <strong className="text-amber-900">GSC 数据：</strong>
+                    <strong className="text-amber-900 dark:text-amber-200">GSC 数据：</strong>
                     <ul className="text-xs list-disc list-inside mt-1">
                       <li>总点击数、展示数</li>
                       <li>平均点击率（CTR）</li>
