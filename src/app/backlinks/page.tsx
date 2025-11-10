@@ -220,6 +220,34 @@ export default function BacklinksPage() {
       },
     },
     {
+      title: '风险标记',
+      dataIndex: 'riskLevel',
+      width: 120,
+      align: 'center',
+      hideInSearch: false,
+      render: (_, r) => {
+        const riskLevel = r.riskLevel || 'safe';
+
+        if (riskLevel === 'link_farm') {
+          return (
+            <Tooltip title="此网站被标记为链接农场，谨慎提交">
+              <Badge status="error" text="链接农场" />
+            </Tooltip>
+          );
+        }
+
+        if (riskLevel === 'low_authority') {
+          return (
+            <Tooltip title="此网站权威度低，质量一般">
+              <Badge status="warning" text="低权威度" />
+            </Tooltip>
+          );
+        }
+
+        return <Typography.Text type="secondary">-</Typography.Text>;
+      },
+    },
+    {
       title: '备注',
       dataIndex: 'note',
       ellipsis: true,

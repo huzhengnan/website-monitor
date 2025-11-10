@@ -6,7 +6,7 @@ import {
   validateSemrushData,
   generateNoteFromSemrush,
 } from '@/lib/services/semrush-parser.service';
-import { extractDomain } from '@/lib/services/url-normalization.service';
+import { extractDomain, normalizeUrl, selectBetterUrl } from '@/lib/services/url-normalization.service';
 import { calculateImportanceScore } from '@/lib/services/importance-score.service';
 
 /**
@@ -57,7 +57,8 @@ export async function POST(request: NextRequest) {
         }
 
         const domain = extractDomain(semrushData.domain).toLowerCase();
-        const url = `https://${domain}`;
+        const rawUrl = `https://${domain}`;
+        const url = normalizeUrl(rawUrl); // 规范化 URL（处理 www、末尾斜杠等）
         const now = new Date();
 
         // 分别构建数据以避免 Prisma BigInt 类型混合错误
@@ -101,6 +102,47 @@ export async function POST(request: NextRequest) {
           backlinksValue = BigInt(Math.round(semrushData.backlinks));
         }
 
+        // 检查是否已存在（优先检查完全相同的 URL）
+        let existingSite = await prisma.backlinkSite.findUnique({
+          where: { url },
+        });
+
+        // 如果 URL 不存在，检查是否存在同 domain 但不同 URL 的记录（可能是末尾斜杠等差异）
+        if (!existingSite) {
+          const domainSites = await prisma.backlinkSite.findMany({
+            where: { domain },
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+          });
+
+          if (domainSites.length > 0) {
+            // 发现同 domain 的现有记录，比较 URL 质量，选择更好的 URL
+            const existingUrl = domainSites[0].url;
+            const betterUrl = selectBetterUrl(url, existingUrl);
+
+            if (betterUrl !== existingUrl) {
+              // 新 URL 更好，需要更新现有记录的 URL
+              existingSite = domainSites[0];
+
+              // 更新为更规范的 URL
+              await (prisma.backlinkSite.update as any)({
+                where: { id: existingSite.id },
+                data: { url: betterUrl },
+              });
+
+              // 更新 URL 引用
+              existingSite = await prisma.backlinkSite.findUnique({
+                where: { url: betterUrl },
+              });
+            } else {
+              // 现有 URL 更好，使用现有 URL
+              existingSite = domainSites[0];
+            }
+          }
+        }
+
+        const isNew = !existingSite;
+
         // 使用 upsert - 自动创建或更新（用 url 作为唯一字段）
         // 注意：不在 upsert 时混合 BigInt 和其他类型，避免 Prisma 类型混合错误
         const site = await (prisma.backlinkSite.upsert as any)({
@@ -135,8 +177,6 @@ export async function POST(request: NextRequest) {
         });
 
         // 统计结果
-        const isNew = site.createdAt.getTime() === site.updatedAt.getTime() &&
-                     site.updatedAt.getTime() > now.getTime() - 1000;
         if (isNew) {
           results.success++;
         } else {

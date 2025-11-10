@@ -14,11 +14,15 @@ export default function BacklinksFooter() {
         // Fetch all backlinks with large page size
         const res = await listBacklinks({ pageSize: 1000 });
         if (res.success && res.data) {
-          const sortedDomains = res.data
-            .map(site => site.domain)
-            .filter(domain => !!domain)
-            .sort();
-          setDomains(sortedDomains);
+          // Remove duplicates using Set, then sort
+          const uniqueDomains = Array.from(
+            new Set(
+              res.data
+                .map(site => site.domain)
+                .filter(domain => !!domain)
+            )
+          ).sort();
+          setDomains(uniqueDomains);
         }
       } catch (error) {
         console.error('Failed to load backlinks:', error);

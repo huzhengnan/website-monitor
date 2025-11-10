@@ -129,7 +129,8 @@ function parseSemrushBlock(lines: string[]): SemrushData {
     if (lowerLine === 'good' || lowerLine === 'bad' || lowerLine === 'excellent' || lowerLine === 'poor') return false; // 评级词
     if (lowerLine === 'chatgpt' || lowerLine === 'gemini' || lowerLine === 'ai overview' || lowerLine === 'ai mode') return false; // AI 产品名
     if (lowerLine.includes('流量比例') || lowerLine.includes('引用') || lowerLine.includes('cited')) return false;
-    if (line.length <= 3 && !line.includes('.') && !line.match(/^\d+\.?\d*[KMB]?$/)) return false;
+    // 注意：保留 'link farm' 不过滤，因为它是有意义的状态标记
+    if (line.length <= 3 && !line.includes('.') && !line.match(/^\d+\.?\d*[KMB]?$/) && !lowerLine.includes('farm')) return false;
     return true;
   };
 
@@ -365,6 +366,16 @@ function parseSemrushBlock(lines: string[]): SemrushData {
       if (match && !data.keywordsChange) {
         data.keywordsChange = parseFloat(match[1]);
       }
+    }
+
+    // 风险级别检测
+    // Link Farm（最严重）
+    if (lowerLine.includes('link') && lowerLine.includes('farm')) {
+      data.riskLevel = 'link_farm';
+    }
+    // Low Authority（中等风险）- 只有在没有检测到link farm时才设置
+    else if (lowerLine.includes('low') && lowerLine.includes('authority') && data.riskLevel !== 'link_farm') {
+      data.riskLevel = 'low_authority';
     }
   }
 

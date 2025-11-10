@@ -22,6 +22,9 @@ export interface BacklinkSite {
   keywordsChange?: number | null;
   semrushLastSync?: string | null;
 
+  // 风险标记
+  riskLevel?: 'safe' | 'low_authority' | 'link_farm' | null;
+
   // 提交统计
   submissionCount?: number;
 
