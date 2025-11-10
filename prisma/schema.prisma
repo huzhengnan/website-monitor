@@ -348,6 +348,25 @@ model BacklinkSite {
   // 重要程度评分：综合 DR、提交状态、提交数量计算（0-100）
   // 计算方式：DR权重50% + 提交状态权重30% + 提交数量权重20%
   importanceScore Int? @default(0) @map("importance_score")
+
+  // Semrush SEO 数据
+  authorityScore    Int?           @map("authority_score")        // Authority Score (0-100)
+  organicTraffic    Decimal?       @map("organic_traffic") @db.Decimal(15, 2)   // 有机流量
+  organicKeywords   Int?           @map("organic_keywords")       // 有机关键词数
+  paidTraffic       Decimal?       @map("paid_traffic") @db.Decimal(15, 2)      // 付费流量
+  backlinks         BigInt?        @map("backlinks")              // 总外链数
+  refDomains        Int?           @map("ref_domains")            // 引用域名数
+
+  // 可选补充数据
+  aiVisibility      Int?           @map("ai_visibility")          // AI 能见度
+  aiMentions        Int?           @map("ai_mentions")            // AI 提及数
+  trafficChange     Decimal?       @map("traffic_change") @db.Decimal(6, 2)     // 流量变化百分比
+  keywordsChange    Decimal?       @map("keywords_change") @db.Decimal(6, 2)    // 关键词变化百分比
+
+  // Semrush 同步元数据
+  semrushLastSync   DateTime?      @map("semrush_last_sync")
+  semrushDataJson   Json?          @map("semrush_data_json")      // 保存完整 Semrush 返回数据
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -355,6 +374,8 @@ model BacklinkSite {
 
   @@index([domain])
   @@index([importanceScore(sort: Desc)])
+  @@index([authorityScore(sort: Desc)])
+  @@index([organicTraffic(sort: Desc)])
   @@schema("website_manager")
   @@map("backlink_sites")
 }

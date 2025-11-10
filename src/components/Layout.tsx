@@ -14,6 +14,7 @@ import {
 } from '@ant-design/icons';
 import { Segmented, FloatButton } from 'antd';
 import { useTheme } from './ThemeContext';
+import { NotificationManager } from './NotificationProvider';
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const [mounted, setMounted] = useState(false);
@@ -51,6 +52,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen">
+      <NotificationManager />
       <ProLayout
         title="网站管理平台"
         logo={null}

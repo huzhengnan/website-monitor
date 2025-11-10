@@ -1,6 +1,6 @@
 'use client';
 
-import { message, Modal } from 'antd';
+import { message, Modal, App as AntdApp } from 'antd';
 import { ReactNode } from 'react';
 import { CheckCircleOutlined, ExclamationCircleOutlined, InfoCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
 
@@ -12,6 +12,16 @@ interface NotificationOptions {
   onOk?: () => void;
   onCancel?: () => void;
 }
+
+// Store the App instance for use in static functions
+let appInstance: ReturnType<typeof AntdApp.useApp> | null = null;
+
+/**
+ * 内部函数：设置 App 实例（由 NotificationManager 组件调用）
+ */
+export const setAppInstance = (app: ReturnType<typeof AntdApp.useApp>) => {
+  appInstance = app;
+};
 
 /**
  * 显示 Toast 通知（自动消失）
@@ -37,48 +47,84 @@ export const showToast = (text: string, type: NotificationType = 'info', duratio
  * 显示模态对话框（需要用户确认）
  */
 export const showModal = (title: string, content: ReactNode | string, options?: NotificationOptions) => {
-  Modal.info({
-    title,
-    content,
-    okText: '确定',
-    onOk: options?.onOk,
-  });
+  if (appInstance) {
+    appInstance.modal.info({
+      title,
+      content,
+      okText: '确定',
+      onOk: options?.onOk,
+    });
+  } else {
+    Modal.info({
+      title,
+      content,
+      okText: '确定',
+      onOk: options?.onOk,
+    });
+  }
 };
 
 /**
  * 显示成功对话框
  */
 export const showSuccessModal = (title: string, content: ReactNode | string, options?: NotificationOptions) => {
-  Modal.success({
-    title,
-    content,
-    okText: '确定',
-    onOk: options?.onOk,
-  });
+  if (appInstance) {
+    appInstance.modal.success({
+      title,
+      content,
+      okText: '确定',
+      onOk: options?.onOk,
+    });
+  } else {
+    Modal.success({
+      title,
+      content,
+      okText: '确定',
+      onOk: options?.onOk,
+    });
+  }
 };
 
 /**
  * 显示错误对话框
  */
 export const showErrorModal = (title: string, content: ReactNode | string, options?: NotificationOptions) => {
-  Modal.error({
-    title,
-    content,
-    okText: '确定',
-    onOk: options?.onOk,
-  });
+  if (appInstance) {
+    appInstance.modal.error({
+      title,
+      content,
+      okText: '确定',
+      onOk: options?.onOk,
+    });
+  } else {
+    Modal.error({
+      title,
+      content,
+      okText: '确定',
+      onOk: options?.onOk,
+    });
+  }
 };
 
 /**
  * 显示警告对话框
  */
 export const showWarningModal = (title: string, content: ReactNode | string, options?: NotificationOptions) => {
-  Modal.warning({
-    title,
-    content,
-    okText: '确定',
-    onOk: options?.onOk,
-  });
+  if (appInstance) {
+    appInstance.modal.warning({
+      title,
+      content,
+      okText: '确定',
+      onOk: options?.onOk,
+    });
+  } else {
+    Modal.warning({
+      title,
+      content,
+      okText: '确定',
+      onOk: options?.onOk,
+    });
+  }
 };
 
 /**
@@ -86,7 +132,7 @@ export const showWarningModal = (title: string, content: ReactNode | string, opt
  */
 export const showConfirmModal = (title: string, content: ReactNode | string, options?: NotificationOptions) => {
   return new Promise<boolean>((resolve) => {
-    Modal.confirm({
+    const confirmConfig = {
       title,
       content,
       okText: '确定',
@@ -99,9 +145,25 @@ export const showConfirmModal = (title: string, content: ReactNode | string, opt
         options?.onCancel?.();
         resolve(false);
       },
-    });
+    };
+
+    if (appInstance) {
+      appInstance.modal.confirm(confirmConfig);
+    } else {
+      Modal.confirm(confirmConfig);
+    }
   });
 };
+
+/**
+ * NotificationManager 组件 - 必须包裹在 AntdApp 内部
+ * 用于初始化 app 实例，使得模态框能够正确消费 theme context
+ */
+export function NotificationManager() {
+  const app = AntdApp.useApp();
+  setAppInstance(app);
+  return null;
+}
 
 /**
  * 显示导入结果详情（专用于导入流程）

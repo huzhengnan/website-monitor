@@ -8,6 +8,14 @@ import {
   selectBetterUrl,
 } from '@/lib/services/url-normalization.service';
 
+// 转换 BigInt 为字符串以便 JSON 序列化
+function serializeBigInt(data: any) {
+  return {
+    ...data,
+    backlinks: data.backlinks ? data.backlinks.toString() : null,
+  };
+}
+
 // 获取所有外链站点列表（支持分页、排序、搜索）
 export async function GET(request: NextRequest) {
   try {
@@ -29,18 +37,20 @@ export async function GET(request: NextRequest) {
       : {};
 
     // 构建排序对象
-    // 注意：importanceScore 字段需要在数据库迁移后才能使用
     const orderBy: any = {};
     if (
       sortField === 'createdAt' ||
       sortField === 'updatedAt' ||
       sortField === 'domain' ||
-      sortField === 'dr'
+      sortField === 'dr' ||
+      sortField === 'importanceScore' ||
+      sortField === 'authorityScore' ||
+      sortField === 'organicTraffic'
     ) {
       orderBy[sortField] = sortOrder;
     } else {
-      // 其他字段默认按创建时间降序
-      orderBy['createdAt'] = 'desc';
+      // 其他字段默认按重要程度降序
+      orderBy['importanceScore'] = 'desc';
     }
 
     const skip = (page - 1) * pageSize;
@@ -51,13 +61,26 @@ export async function GET(request: NextRequest) {
         skip,
         take: pageSize,
         orderBy,
+        include: {
+          backlinkSubmissions: {
+            select: { id: true }, // 只获取 ID 用于计数
+          },
+        },
       }),
       prisma.backlinkSite.count({ where }),
     ]);
 
+    // 转换 BigInt 为字符串以便 JSON 序列化，并添加提交数量
+    const serializedSites = sites.map((site: any) => ({
+      ...site,
+      backlinks: site.backlinks ? site.backlinks.toString() : null,
+      submissionCount: site.backlinkSubmissions?.length || 0,
+      backlinkSubmissions: undefined, // 不返回详细的提交数据，只返回计数
+    }));
+
     return NextResponse.json({
       success: true,
-      data: sites,
+      data: serializedSites,
       total,
       page,
       pageSize,
@@ -123,7 +146,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: true,
-            data: updated,
+            data: serializeBigInt(updated),
             message: 'Duplicate detected. Updated existing record with better URL',
             status: 'duplicate_merged',
           },
@@ -134,7 +157,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             success: true,
-            data: existingByDomain,
+            data: serializeBigInt(existingByDomain),
             message: 'Duplicate detected. Existing record has better URL format',
             status: 'duplicate_exists',
           },
@@ -161,7 +184,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        data: site,
+        data: serializeBigInt(site),
         message: 'Backlink site created successfully',
         status: 'created',
       },

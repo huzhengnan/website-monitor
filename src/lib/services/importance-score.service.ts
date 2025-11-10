@@ -4,9 +4,14 @@ import { prisma } from '@/lib/prisma';
  * 外链网站重要程度评分服务
  *
  * 评分规则（总分 100）：
- * - DR（域名等级）: 50% 权重
- * - 提交状态: 30% 权重
- * - 提交数量: 20% 权重
+ * - Authority Score（权威度）: 40% 权重
+ * - Organic Traffic（有机流量）: 35% 权重
+ * - Backlinks（反向链接）: 15% 权重
+ * - Ref.Domains（引用域名）: 10% 权重
+ *
+ * 备注：
+ * - 优先使用 Semrush 数据（如果可用）
+ * - 如果没有 Semrush 数据，使用传统的 DR + 提交状态 + 提交数量
  */
 
 /**
@@ -29,9 +34,77 @@ export async function calculateImportanceScore(backlinkSiteId: string): Promise<
 
   let score = 0;
 
+  // 如果有 Semrush 数据，优先使用 Semrush 算法
+  if (site.authorityScore || site.organicTraffic || site.backlinks || site.refDomains) {
+    return calculateSemrushBasedScore(site);
+  }
+
+  // 否则使用传统的 DR + 提交状态 + 提交数量算法
+  return calculateTraditionalScore(site);
+}
+
+/**
+ * 基于 Semrush 数据的评分算法
+ *
+ * 评分规则（总分 100）：
+ * - Authority Score（权威度）: 40% 权重 (0-100)
+ * - Organic Traffic（有机流量）: 35% 权重 (标准化到 0-100)
+ * - Backlinks（反向链接）: 15% 权重 (标准化到 0-100)
+ * - Ref.Domains（引用域名）: 10% 权重 (标准化到 0-100)
+ */
+function calculateSemrushBasedScore(site: any): number {
+  let score = 0;
+
+  // 1. Authority Score (40% 权重)
+  if (site.authorityScore) {
+    // Authority Score 范围是 0-100，直接使用
+    score += Math.min(100, site.authorityScore) * 0.4;
+  }
+
+  // 2. Organic Traffic (35% 权重)
+  if (site.organicTraffic) {
+    // 有机流量标准化：1M 流量 = 100 分
+    // 注意：organicTraffic 是 Decimal 类型，需要转换为 number
+    const traffic = Number(site.organicTraffic);
+    const trafficScore = Math.min(100, (traffic / 1_000_000) * 100);
+    score += trafficScore * 0.35;
+  }
+
+  // 3. Backlinks (15% 权重)
+  if (site.backlinks) {
+    // 反向链接标准化：100M 链接 = 100 分
+    // 注意：backlinks 是 BigInt 类型，需要转换为 number
+    const backlinks = Number(site.backlinks);
+    const backlinksScore = Math.min(100, (backlinks / 100_000_000) * 100);
+    score += backlinksScore * 0.15;
+  }
+
+  // 4. Ref.Domains (10% 权重)
+  if (site.refDomains) {
+    // 引用域名标准化：100K 域名 = 100 分
+    // refDomains 是 Int 类型，但为了安全起见也转换一下
+    const refDomains = Number(site.refDomains);
+    const refDomainsScore = Math.min(100, (refDomains / 100_000) * 100);
+    score += refDomainsScore * 0.1;
+  }
+
+  return Math.round(score);
+}
+
+/**
+ * 传统的评分算法
+ * - DR（域名等级）: 50% 权重
+ * - 提交状态: 30% 权重
+ * - 提交数量: 20% 权重
+ */
+function calculateTraditionalScore(site: any): number {
+  let score = 0;
+
   // 1. DR 权重 50%
   if (site.dr) {
-    const drScore = Math.min(100, Number(site.dr) * 2); // DR 最高 50，转换为 50 分
+    // dr 是 Decimal 类型，需要转换为 number
+    const drValue = Number(site.dr);
+    const drScore = Math.min(100, drValue * 2); // DR 最高 50，转换为 50 分
     score += drScore * 0.5;
   }
 
@@ -48,7 +121,7 @@ export async function calculateImportanceScore(backlinkSiteId: string): Promise<
 
     // 计算平均状态分数
     const avgStatusScore =
-      submissions.reduce((sum: number, sub) => {
+      submissions.reduce((sum: number, sub: any) => {
         const statusScore = statusScores[sub.status] || 0;
         return sum + statusScore;
       }, 0) / submissions.length;
