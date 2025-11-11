@@ -845,10 +845,10 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
                         href={submission.backlinkSite.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 font-medium flex items-center gap-2 truncate"
+                        className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline font-medium inline-flex items-center gap-2 group"
                       >
                         {submission.backlinkSite.domain}
-                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                        <ExternalLink className="w-3 h-3 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
                       </a>
                       {submission.backlinkSite.dr && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -898,6 +898,37 @@ export function BacklinksManager({ siteId }: BacklinksManagerProps) {
                 </div>
 
                 <div className="flex gap-2 flex-shrink-0">
+                  {submission.status !== 'indexed' && (
+                    <button
+                      onClick={async () => {
+                        try {
+                          const today = new Date().toISOString().split('T')[0];
+                          const payload = {
+                            status: 'indexed',
+                            indexedDate: today,
+                          };
+                          const response = await fetch(`/api/backlinks/${submission.id}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload),
+                          });
+                          if (response.ok) {
+                            showToast('✅ 已标记为已收录', 'success');
+                            loadSubmissions();
+                          } else {
+                            showToast('❌ 更新失败', 'error');
+                          }
+                        } catch (error) {
+                          console.error('Failed to update submission:', error);
+                          showToast('❌ 更新失败', 'error');
+                        }
+                      }}
+                      className="px-2 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition text-xs font-medium"
+                      title="快速标记为已收录"
+                    >
+                      收录
+                    </button>
+                  )}
                   <button
                     onClick={() => handleEditClick(submission)}
                     className="p-2 hover:bg-muted rounded-lg transition text-muted-foreground hover:text-foreground"

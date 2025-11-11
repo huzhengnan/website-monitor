@@ -5,6 +5,7 @@ import Link from 'next/link';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable, ModalForm, ProFormText } from '@ant-design/pro-components';
 import { Button, Tag, Space, Typography, message, Tooltip, Progress, Modal, Table, Badge } from 'antd';
+import { Copy } from 'lucide-react';
 import { Star, TrendingUp } from 'lucide-react';
 import { createBacklink, importBacklinksFromDocs, listBacklinks, BacklinkSite, deleteBacklink, updateBacklink, getBacklinkSubmissions, BacklinkSubmissionDetail } from '@/api/backlinks';
 import SemrushImportModal from '@/components/SemrushImportModal';
@@ -28,6 +29,7 @@ function getImportanceLevel(score: number | null | undefined) {
 }
 
 export default function BacklinksPage() {
+  const [messageApi, contextHolder] = message.useMessage();
   const actionRef = useRef<ActionType | undefined>(undefined);
   const [semrushModalVisible, setSemrushModalVisible] = useState(false);
   const [gscModalVisible, setGscModalVisible] = useState(false);
@@ -59,7 +61,24 @@ export default function BacklinksPage() {
       dataIndex: 'domain',
       width: 160,
       ellipsis: true,
-      copyable: true,
+      render: (_, r) => (
+        <div className="flex items-center gap-2">
+          <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 truncate">
+            {r.domain}
+          </a>
+          <Tooltip title="复制域名">
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(r.domain);
+                messageApi.success('已复制');
+              }}
+              className="p-1 hover:bg-gray-100 rounded transition text-gray-500 hover:text-gray-700"
+            >
+              <Copy className="w-3.5 h-3.5" />
+            </button>
+          </Tooltip>
+        </div>
+      ),
     },
     {
       title: 'URL',
@@ -295,7 +314,6 @@ export default function BacklinksPage() {
       valueType: 'option',
       width: 160,
       render: (_, r) => [
-        <Link key="open" href={r.url} target="_blank">打开</Link>,
         <ModalForm
           key="edit"
           title="编辑外链"
@@ -341,6 +359,7 @@ export default function BacklinksPage() {
 
   return (
     <>
+      {contextHolder}
       <ProTable<BacklinkSite>
         rowKey="id"
         columns={columns}
@@ -475,6 +494,50 @@ export default function BacklinksPage() {
               dataIndex: 'notes',
               key: 'notes',
               render: (notes: string | null | undefined) => notes || '-',
+            },
+            {
+              title: '操作',
+              key: 'action',
+              width: 100,
+              render: (_, record: BacklinkSubmissionDetail) => {
+                if (record.status === 'indexed') {
+                  return <span className="text-xs text-muted-foreground">已收录</span>;
+                }
+                return (
+                  <a
+                    onClick={async () => {
+                      const hide = message.loading('更新中...', 0);
+                      try {
+                        const today = new Date().toISOString().split('T')[0];
+                        const response = await fetch(`/api/backlinks/${record.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            status: 'indexed',
+                            indexedDate: today,
+                          }),
+                        });
+                        if (response.ok) {
+                          message.success('已标记为已收录');
+                          // 重新加载提交记录
+                          const res = await getBacklinkSubmissions(record.backlinkSiteId);
+                          if (res.success) {
+                            setSubmissionsData(res.data);
+                          }
+                        } else {
+                          message.error('更新失败');
+                        }
+                      } catch (error: any) {
+                        message.error(error?.message || '更新失败');
+                      } finally {
+                        hide();
+                      }
+                    }}
+                  >
+                    <span className="text-blue-600 hover:text-blue-800">标记收录</span>
+                  </a>
+                );
+              },
             },
           ]}
           dataSource={submissionsData}

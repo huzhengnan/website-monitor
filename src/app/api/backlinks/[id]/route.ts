@@ -1,6 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// 辅助函数：将Prisma对象转换为可序列化的JSON对象
+function serializeData(data: any): any {
+  if (data === null || data === undefined) return data;
+
+  if (typeof data === 'bigint') {
+    return data.toString();
+  }
+
+  if (data instanceof Date) {
+    return data.toISOString();
+  }
+
+  if (typeof data === 'object') {
+    if (Array.isArray(data)) {
+      return data.map(item => serializeData(item));
+    }
+
+    const result: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      result[key] = serializeData(value);
+    }
+    return result;
+  }
+
+  return data;
+}
+
 // 更新外链提交记录
 export async function PATCH(
   request: NextRequest,
@@ -35,7 +62,7 @@ export async function PATCH(
 
     return NextResponse.json({
       success: true,
-      data: submission,
+      data: serializeData(submission),
       message: 'Backlink submission updated successfully',
     });
   } catch (error) {
