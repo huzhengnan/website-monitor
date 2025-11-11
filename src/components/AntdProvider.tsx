@@ -9,14 +9,16 @@ import { ThemeProvider, useTheme } from './ThemeContext';
 
 type Props = { children: React.ReactNode };
 
-// Suppress Ant Design React 19 compatibility warning in development
+// Suppress Ant Design warnings in development
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
   const originalError = console.error;
   console.error = function (...args: any[]) {
-    // Filter out the specific Ant Design React 19 compatibility warning
+    // Filter out Ant Design warnings
     if (
       args[0]?.includes?.('antd: compatible') ||
-      args[0]?.includes?.('antd v5 support React is 16 ~ 18')
+      args[0]?.includes?.('antd v5 support React is 16 ~ 18') ||
+      args[0]?.includes?.('antd: message') ||
+      args[0]?.includes?.('Static function can not consume context like dynamic theme')
     ) {
       return;
     }
