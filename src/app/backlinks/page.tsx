@@ -7,7 +7,7 @@ import { ProTable, ModalForm, ProFormText } from '@ant-design/pro-components';
 import { Button, Tag, Space, Typography, message, Tooltip, Progress, Modal, Table, Badge, Input } from 'antd';
 import { Copy } from 'lucide-react';
 import { Star, TrendingUp } from 'lucide-react';
-import { createBacklink, importBacklinksFromDocs, listBacklinks, BacklinkSite, deleteBacklink, updateBacklink, getBacklinkSubmissions, BacklinkSubmissionDetail } from '@/api/backlinks';
+import { createBacklink, importBacklinksFromDocs, listBacklinks, BacklinkSite, deleteBacklink, updateBacklink, getBacklinkSubmissions, BacklinkSubmissionDetail, toggleFavorite } from '@/api/backlinks';
 import SemrushImportModal from '@/components/SemrushImportModal';
 import GSCImportModal from '@/components/GSCImportModal';
 import QuickImportModal from '@/components/QuickImportModal';
@@ -60,10 +60,28 @@ export default function BacklinksPage() {
     {
       title: '域名',
       dataIndex: 'domain',
-      width: 160,
+      width: 220,
       ellipsis: true,
       render: (_, r) => (
         <div className="flex items-center gap-2">
+          <Tooltip title={r.isFavorite ? '取消收藏' : '收藏'}>
+            <button
+              onClick={async () => {
+                try {
+                  await toggleFavorite(r.id, !r.isFavorite);
+                  messageApi.success(r.isFavorite ? '已取消收藏' : '已收藏');
+                  actionRef.current?.reload();
+                } catch (error: any) {
+                  messageApi.error(error?.message || '操作失败');
+                }
+              }}
+              className="p-1 hover:bg-gray-100 rounded transition"
+            >
+              <Star
+                className={`w-4 h-4 ${r.isFavorite ? 'fill-yellow-400 text-yellow-400' : 'text-gray-400'}`}
+              />
+            </button>
+          </Tooltip>
           <a href={r.url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 truncate">
             {r.domain}
           </a>

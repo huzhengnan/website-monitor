@@ -374,6 +374,9 @@ model BacklinkSite {
   // 快捷提交
   submitUrl         String?        @map("submit_url") @db.VarChar(500)  // 提交网址链接
 
+  // 收藏状态
+  isFavorite        Boolean        @default(false) @map("is_favorite")  // 是否收藏
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -383,6 +386,7 @@ model BacklinkSite {
   @@index([importanceScore(sort: Desc)])
   @@index([authorityScore(sort: Desc)])
   @@index([organicTraffic(sort: Desc)])
+  @@index([isFavorite])
   @@schema("website_manager")
   @@map("backlink_sites")
 }

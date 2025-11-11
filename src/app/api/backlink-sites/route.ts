@@ -36,8 +36,11 @@ export async function GET(request: NextRequest) {
         }
       : {};
 
-    // 构建排序对象
-    const orderBy: any = {};
+    // 构建排序对象 - 收藏的始终排在前面
+    const orderBy: any = [
+      { isFavorite: 'desc' }, // 收藏的排在前面
+    ];
+
     if (
       sortField === 'createdAt' ||
       sortField === 'updatedAt' ||
@@ -47,10 +50,10 @@ export async function GET(request: NextRequest) {
       sortField === 'authorityScore' ||
       sortField === 'organicTraffic'
     ) {
-      orderBy[sortField] = sortOrder;
+      orderBy.push({ [sortField]: sortOrder });
     } else {
       // 其他字段默认按重要程度降序
-      orderBy['importanceScore'] = 'desc';
+      orderBy.push({ importanceScore: 'desc' });
     }
 
     const skip = (page - 1) * pageSize;
@@ -78,6 +81,7 @@ export async function GET(request: NextRequest) {
         domain: site.domain,
         dr: site.dr,
         note: site.note,
+        isFavorite: site.isFavorite,
         importanceScore: site.importanceScore,
         authorityScore: site.authorityScore,
         organicTraffic: site.organicTraffic,

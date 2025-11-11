@@ -7,6 +7,7 @@ export interface BacklinkSite {
   dr?: number | string | null;
   note?: string | null;
   submitUrl?: string | null; // 快捷提交网址
+  isFavorite?: boolean; // 是否收藏
   // 重要程度评分（0-100）- 综合 DR、提交状态、提交数量
   importanceScore?: number | null;
 
@@ -64,6 +65,10 @@ export async function importSemrushData(pastedText: string): Promise<{
 
 export async function deleteBacklink(id: string): Promise<{ success: boolean }> {
   return client.delete(`/backlink-sites/${id}`);
+}
+
+export async function toggleFavorite(id: string, isFavorite: boolean): Promise<{ success: boolean }> {
+  return client.patch(`/backlink-sites/${id}/favorite`, { isFavorite });
 }
 
 export interface BacklinkSubmissionDetail {
