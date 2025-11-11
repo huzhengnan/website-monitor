@@ -43,3 +43,62 @@ export async function GET(
     );
   }
 }
+
+// 创建提交记录
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { status = 'submitted', submitDate, indexedDate, notes } = body;
+
+    // 检查外链网站是否存在
+    const backlinkSite = await prisma.backlinkSite.findUnique({
+      where: { id },
+    });
+
+    if (!backlinkSite) {
+      return NextResponse.json(
+        { success: false, message: 'Backlink site not found' },
+        { status: 404 }
+      );
+    }
+
+    // 创建提交记录
+    const submission = await prisma.backlinkSubmission.create({
+      data: {
+        backlinkSiteId: id,
+        status,
+        submitDate: submitDate ? new Date(submitDate) : new Date(),
+        indexedDate: indexedDate ? new Date(indexedDate) : null,
+        notes,
+      },
+      include: {
+        site: {
+          select: {
+            id: true,
+            name: true,
+            domain: true,
+          },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        ...submission,
+        cost: submission.cost ? Number(submission.cost) : null,
+      },
+      message: 'Submission created successfully',
+    });
+  } catch (error) {
+    console.error('Failed to create submission:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to create submission' },
+      { status: 500 }
+    );
+  }
+}

@@ -474,12 +474,12 @@ export default function BacklinksPage() {
             <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: 600, color: '#262626' }}>
               ➕ 快速添加提交记录
             </h3>
-            <p style={{ margin: 0, fontSize: '12px', color: '#8c8c8c' }}>输入网站域名，快速添加到提交记录中</p>
+            <p style={{ margin: 0, fontSize: '12px', color: '#8c8c8c' }}>添加向此外链网站的提交记录</p>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <Input
               id="quickSubmissionDomain"
-              placeholder="输入网站域名 (如: example.com)"
+              placeholder="输入备注信息 (如: 已提交到首页、待回复等)"
               allowClear
               size="large"
               onKeyDown={(e) => {
@@ -495,19 +495,21 @@ export default function BacklinksPage() {
               size="large"
               onClick={async () => {
                 const input = document.getElementById('quickSubmissionDomain') as HTMLInputElement;
-                const domain = input?.value?.trim();
-                if (!domain) {
-                  message.warning('请输入域名');
+                const notes = input?.value?.trim();
+                if (!notes) {
+                  message.warning('请输入备注');
                   return;
                 }
 
                 const hide = message.loading('正在添加...', 0);
                 try {
-                  const response = await fetch('/api/backlink-sites/quick-import', {
+                  const response = await fetch(`/api/backlink-sites/${selectedBacklinkId}/submissions`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                      domains: [{ domain }],
+                      status: 'submitted',
+                      submitDate: new Date().toISOString(),
+                      notes,
                     }),
                   });
 
@@ -521,8 +523,6 @@ export default function BacklinksPage() {
                     if (res.success) {
                       setSubmissionsData(res.data);
                     }
-                    // 刷新主表格
-                    actionRef.current?.reload();
                   } else {
                     message.error(result.message || '添加失败');
                   }
