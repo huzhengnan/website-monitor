@@ -318,11 +318,11 @@ export default function BacklinksPage() {
           key="edit"
           title="编辑外链"
           trigger={<a>编辑</a>}
-          initialValues={{ url: r.url, note: r.note, dr: r.dr }}
+          initialValues={{ url: r.url, note: r.note, dr: r.dr, submitUrl: r.submitUrl }}
           onFinish={async (v: any) => {
             const hide = message.loading('正在保存…', 0);
             try {
-              await updateBacklink(r.id, { url: v.url, note: v.note, dr: v.dr });
+              await updateBacklink(r.id, { url: v.url, note: v.note, dr: v.dr, submitUrl: v.submitUrl });
               message.success('已保存');
               actionRef.current?.reload();
               return true;
@@ -337,7 +337,25 @@ export default function BacklinksPage() {
           <ProFormText name="url" label="URL" placeholder="https://…" rules={[{ required: true }]} />
           <ProFormText name="dr" label="DR" placeholder="可选" />
           <ProFormText name="note" label="备注" placeholder="可选" />
+          <ProFormText
+            name="submitUrl"
+            label="快捷提交"
+            placeholder="https://…（提交网址）"
+            extra="点击下方快速提交按钮可直接跳转"
+          />
         </ModalForm>,
+        r.submitUrl ? (
+          <a
+            key="submit"
+            href={r.submitUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#1890ff' }}
+            title="打开快捷提交链接"
+          >
+            提交
+          </a>
+        ) : null,
         <a
           key="del"
           onClick={async () => {

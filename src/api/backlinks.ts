@@ -6,6 +6,7 @@ export interface BacklinkSite {
   domain: string;
   dr?: number | string | null;
   note?: string | null;
+  submitUrl?: string | null; // 快捷提交网址
   // 重要程度评分（0-100）- 综合 DR、提交状态、提交数量
   importanceScore?: number | null;
 
@@ -45,7 +46,7 @@ export async function createBacklink(payload: { url: string; note?: string; dr?:
   return client.post('/backlink-sites', payload);
 }
 
-export async function updateBacklink(id: string, payload: { url?: string; note?: string; dr?: number | null }) {
+export async function updateBacklink(id: string, payload: { url?: string; note?: string; dr?: number | null; submitUrl?: string | null }) {
   return client.put(`/backlink-sites/${id}`, payload);
 }
 

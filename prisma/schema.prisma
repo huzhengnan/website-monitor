@@ -368,6 +368,9 @@ model BacklinkSite {
   semrushDataJson   Json?          @map("semrush_data_json")      // 保存完整 Semrush 返回数据
   semrushTags       Json?          @map("semrush_tags")           // 保存 Semrush 标签（如 'Link farm', 'Spam' 等）
 
+  // 快捷提交
+  submitUrl         String?        @map("submit_url") @db.VarChar(500)  // 提交网址链接
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
 

@@ -16,12 +16,12 @@ function serializeBigInt(data: any) {
 // 更新外链站点
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = params.id;
+    const { id } = await params;
     const body = await request.json();
-    const { url, note, dr } = body;
+    const { url, note, dr, submitUrl } = body;
 
     // 检查站点是否存在
     const existingSite = await prisma.backlinkSite.findUnique({
@@ -79,6 +79,7 @@ export async function PUT(
         domain,
         note: note !== undefined ? note : existingSite.note,
         dr: dr !== undefined ? (dr ? parseFloat(dr) : null) : existingSite.dr,
+        submitUrl: submitUrl !== undefined ? submitUrl : existingSite.submitUrl,
       },
     });
 
