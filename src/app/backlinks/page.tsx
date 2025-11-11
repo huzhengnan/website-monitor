@@ -4,7 +4,7 @@ import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable, ModalForm, ProFormText } from '@ant-design/pro-components';
-import { Button, Tag, Space, Typography, message, Tooltip, Progress, Modal, Table, Badge } from 'antd';
+import { Button, Tag, Space, Typography, message, Tooltip, Progress, Modal, Table, Badge, Input } from 'antd';
 import { Copy } from 'lucide-react';
 import { Star, TrendingUp } from 'lucide-react';
 import { createBacklink, importBacklinksFromDocs, listBacklinks, BacklinkSite, deleteBacklink, updateBacklink, getBacklinkSubmissions, BacklinkSubmissionDetail } from '@/api/backlinks';
@@ -38,6 +38,7 @@ export default function BacklinksPage() {
   const [submissionsLoading, setSubmissionsLoading] = useState(false);
   const [submissionsData, setSubmissionsData] = useState<BacklinkSubmissionDetail[]>([]);
   const [selectedBacklinkDomain, setSelectedBacklinkDomain] = useState<string>('');
+  const [selectedBacklinkId, setSelectedBacklinkId] = useState<string>('');
   const [currentSiteId, setCurrentSiteId] = useState<string>('');
 
   // Load site ID from localStorage on mount
@@ -216,6 +217,7 @@ export default function BacklinksPage() {
           <a
             onClick={async () => {
               setSelectedBacklinkDomain(record.domain);
+              setSelectedBacklinkId(record.id);
               setSubmissionsLoading(true);
               try {
                 const res = await getBacklinkSubmissions(record.id);
@@ -457,7 +459,86 @@ export default function BacklinksPage() {
         onCancel={() => setSubmissionsModalVisible(false)}
         width={900}
         footer={null}
+        styles={{ body: { paddingBottom: '100px' } }}
       >
+        <div
+          style={{
+            marginBottom: '24px',
+            padding: '16px',
+            background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+            borderRadius: '6px',
+            border: '1px solid #e0e6f2',
+          }}
+        >
+          <div style={{ marginBottom: '16px' }}>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '15px', fontWeight: 600, color: '#262626' }}>
+              ➕ 快速添加提交记录
+            </h3>
+            <p style={{ margin: 0, fontSize: '12px', color: '#8c8c8c' }}>输入网站域名，快速添加到提交记录中</p>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Input
+              id="quickSubmissionDomain"
+              placeholder="输入网站域名 (如: example.com)"
+              allowClear
+              size="large"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  (document.querySelector('[data-quick-add-btn]') as HTMLElement)?.click();
+                }
+              }}
+              style={{ flex: 1 }}
+            />
+            <Button
+              data-quick-add-btn="true"
+              type="primary"
+              size="large"
+              onClick={async () => {
+                const input = document.getElementById('quickSubmissionDomain') as HTMLInputElement;
+                const domain = input?.value?.trim();
+                if (!domain) {
+                  message.warning('请输入域名');
+                  return;
+                }
+
+                const hide = message.loading('正在添加...', 0);
+                try {
+                  const response = await fetch('/api/backlink-sites/quick-import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      domains: [{ domain }],
+                    }),
+                  });
+
+                  const result = await response.json();
+                  if (result.success) {
+                    message.success(`已添加提交记录`);
+                    input.value = '';
+                    input.focus();
+                    // 刷新提交记录
+                    const res = await getBacklinkSubmissions(selectedBacklinkId!);
+                    if (res.success) {
+                      setSubmissionsData(res.data);
+                    }
+                    // 刷新主表格
+                    actionRef.current?.reload();
+                  } else {
+                    message.error(result.message || '添加失败');
+                  }
+                } catch (error: any) {
+                  message.error(error?.message || '添加失败');
+                } finally {
+                  hide();
+                }
+              }}
+              style={{ whiteSpace: 'nowrap' }}
+            >
+              快速添加
+            </Button>
+          </div>
+        </div>
+
         <Table<BacklinkSubmissionDetail>
           columns={[
             {
