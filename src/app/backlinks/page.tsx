@@ -345,16 +345,17 @@ export default function BacklinksPage() {
           />
         </ModalForm>,
         r.submitUrl ? (
-          <a
+          <Button
             key="submit"
-            href={r.submitUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: '#1890ff' }}
+            type="primary"
+            size="small"
+            onClick={() => {
+              window.open(r.submitUrl, '_blank');
+            }}
             title="打开快捷提交链接"
           >
             提交
-          </a>
+          </Button>
         ) : null,
         <a
           key="del"

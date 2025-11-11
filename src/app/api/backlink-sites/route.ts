@@ -92,6 +92,8 @@ export async function GET(request: NextRequest) {
         semrushLastSync: site.semrushLastSync,
         semrushDataJson: site.semrushDataJson,
         semrushTags: site.semrushTags,
+        submitUrl: site.submitUrl,
+        riskLevel: site.riskLevel,
         createdAt: site.createdAt,
         updatedAt: site.updatedAt,
         submissionCount: site.backlinkSubmissions?.length || 0,
