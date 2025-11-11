@@ -33,14 +33,13 @@ export default function SitesPage() {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      width: 220,
+      width: 140,
       ellipsis: true,
       sorter: true,
       sortDirections: ['descend', 'ascend'],
-      sortOrder: sortKey === 'name' ? sortOrder : undefined,
       render: (_, r) => <Link href={`/sites/${r.id}`}>{r.name}</Link>,
     },
-    { title: 'ID', dataIndex: 'id', key: 'id', width: 160, copyable: true, ellipsis: true },
+    { title: 'ID', dataIndex: 'id', key: 'id', width: 160, copyable: true, ellipsis: true, hideInTable: true },
     {
       title: '域名',
       dataIndex: 'domain',
@@ -50,7 +49,7 @@ export default function SitesPage() {
       ellipsis: true,
       sorter: true,
       sortDirections: ['descend', 'ascend'],
-      sortOrder: sortKey === 'domain' ? sortOrder : undefined,
+      hideInTable: true,
     },
     {
       title: '状态',
@@ -62,6 +61,7 @@ export default function SitesPage() {
         maintenance: { text: '维护中' },
         offline: { text: '离线' },
       },
+      hideInTable: true,
       render: (_, r) => {
         const status = r.status;
         const map: any = {
@@ -75,11 +75,13 @@ export default function SitesPage() {
     {
       title: '分类',
       dataIndex: ['category', 'name'],
+      hideInTable: true,
       render: (_, r) => r.category?.name || '-',
     },
     {
       title: '平台',
       dataIndex: 'platform',
+      hideInTable: true,
       render: (_, r) => r.platform || '-',
     },
     {
@@ -90,10 +92,9 @@ export default function SitesPage() {
           key: 'pv',
           title: 'PV',
           dataIndex: ['metrics', 'traffic', 'totalPv'],
-          width: 100,
+          width: 60,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'pv' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => r.metrics?.traffic?.totalPv ?? '-',
@@ -102,10 +103,9 @@ export default function SitesPage() {
           key: 'uv',
           title: 'UV',
           dataIndex: ['metrics', 'traffic', 'totalUv'],
-          width: 100,
+          width: 50,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'uv' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => r.metrics?.traffic?.totalUv ?? '-',
@@ -114,10 +114,9 @@ export default function SitesPage() {
           key: 'au',
           title: 'AU',
           dataIndex: ['metrics', 'traffic', 'totalActiveUsers'],
-          width: 100,
+          width: 50,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'au' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => r.metrics?.traffic?.totalActiveUsers ?? '-',
@@ -126,13 +125,75 @@ export default function SitesPage() {
           key: 'sessions',
           title: 'Sessions',
           dataIndex: ['metrics', 'traffic', 'totalSessions'],
-          width: 120,
+          width: 60,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'sessions' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => r.metrics?.traffic?.totalSessions ?? '-',
+        },
+        {
+          key: 'avgSessionDuration',
+          title: '停留',
+          dataIndex: ['metrics', 'traffic', 'avgSessionDuration'],
+          width: 60,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
+          render: (_, r) => {
+            const duration = r.metrics?.traffic?.avgSessionDuration;
+            if (duration === undefined || duration === null || duration === '-') return '-';
+            const val = typeof duration === 'number' ? duration : parseFloat(duration);
+            if (isNaN(val)) return '-';
+
+            // 自动切换单位
+            if (val >= 60) {
+              // 显示为分钟
+              return `${(val / 60).toFixed(1)}m`;
+            } else {
+              // 显示为秒
+              return `${val.toFixed(0)}s`;
+            }
+          },
+        },
+        {
+          key: 'bounceRate',
+          title: () => (
+            <Tooltip title="用户在浏览网站后未进行任何交互就离开的百分比，数值越低越好">
+              <Space size={2}>
+                <span>跳出率</span>
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '18px',
+                  height: '18px',
+                  borderRadius: '50%',
+                  backgroundColor: '#e6f7ff',
+                  color: '#1890ff',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  cursor: 'help',
+                  lineHeight: '18px',
+                }}>?</span>
+              </Space>
+            </Tooltip>
+          ),
+          dataIndex: ['metrics', 'traffic', 'avgBounceRate'],
+          width: 60,
+          sorter: true,
+          sortDirections: ['descend', 'ascend'],
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
+          render: (_, r) => {
+            const bounceRate = r.metrics?.traffic?.avgBounceRate;
+            if (bounceRate === undefined || bounceRate === null || bounceRate === '-') return '-';
+            const rate = typeof bounceRate === 'number' ? bounceRate : parseFloat(bounceRate);
+            // 如果值小于 2，说明是 0-1 之间的小数，需要乘以 100
+            const percentageValue = rate < 2 ? rate * 100 : rate;
+            return isNaN(percentageValue) ? '-' : `${percentageValue.toFixed(1)}%`;
+          },
         },
       ],
     },
@@ -144,10 +205,9 @@ export default function SitesPage() {
           key: 'clicks',
           title: 'Clicks',
           dataIndex: ['metrics', 'gsc', 'totalClicks'],
-          width: 100,
+          width: 50,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'clicks' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => r.metrics?.gsc?.totalClicks ?? '-',
@@ -156,10 +216,9 @@ export default function SitesPage() {
           key: 'impr',
           title: 'Impr',
           dataIndex: ['metrics', 'gsc', 'totalImpressions'],
-          width: 120,
+          width: 60,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'impr' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => r.metrics?.gsc?.totalImpressions ?? '-',
@@ -168,10 +227,9 @@ export default function SitesPage() {
           key: 'ctr',
           title: 'CTR',
           dataIndex: ['metrics', 'gsc', 'avgCtr'],
-          width: 100,
+          width: 50,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'ctr' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => (r.metrics?.gsc?.avgCtr ?? '-') as any,
@@ -180,10 +238,9 @@ export default function SitesPage() {
           key: 'avgpos',
           title: 'AvgPos',
           dataIndex: ['metrics', 'gsc', 'avgPosition'],
-          width: 100,
+          width: 50,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'avgpos' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => (r.metrics?.gsc?.avgPosition ?? '-') as any,
@@ -192,10 +249,9 @@ export default function SitesPage() {
           key: 'backlinks',
           title: '外链数量',
           dataIndex: ['metrics', 'backlinksCount'],
-          width: 110,
+          width: 40,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          sortOrder: sortKey === 'backlinks' ? sortOrder : undefined,
           onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => (
@@ -214,7 +270,6 @@ export default function SitesPage() {
       width: 140,
       sorter: true,
       sortDirections: ['descend', 'ascend'],
-      sortOrder: sortKey === 'createdAt' ? sortOrder : undefined,
     },
     {
       title: '操作',
@@ -248,9 +303,8 @@ export default function SitesPage() {
       actionRef={actionRef}
       cardBordered
       pagination={{ pageSize: 20 }}
-      columnsState={{ persistenceKey: 'sites-columns-v2', persistenceType: 'localStorage' }}
+      columnsState={{ persistenceKey: 'sites-columns-v3', persistenceType: 'localStorage' }}
       sticky
-      scroll={{ x: 1400 }}
       columnEmptyText="-"
       rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
       options={{ setting: { draggable: true }, reload: true, density: true, fullScreen: true }}
@@ -335,12 +389,13 @@ export default function SitesPage() {
           if (s === 'uv' || s.includes('totaluv')) return 'uv';
           if (s === 'au' || s.includes('totalactiveusers')) return 'au';
           if (s === 'sessions' || s.includes('totalsessions')) return 'sessions';
+          if (s === 'bouncerate' || s.includes('bouncerate')) return 'bouncerate';
           if (s === 'clicks' || s.includes('totalclicks')) return 'clicks';
           if (s === 'impr' || s.includes('totalimpressions')) return 'impr';
           if (s === 'ctr' || s.includes('avgctr')) return 'ctr';
           if (s === 'avgpos' || s.includes('avgposition')) return 'avgpos';
           if (s === 'backlinks' || s.includes('backlink')) return 'backlinks';
-          if (s === 'createdat' || s === 'created_at') return 'createdAt';
+          if (s === 'createdat' || s === 'created_at') return 'createdat';
           return s || 'pv';
         };
         let order: 'ascend' | 'descend' | undefined;
@@ -359,11 +414,21 @@ export default function SitesPage() {
             if (v === 'ascend' || v === 'descend') { key = k; order = v as any; }
           }
         }
-        if (!order || !key) return; // 列显隐等情况可能传入空 sorter
+        if (!key) return; // 列显隐等情况可能传入空 key
         const nk = normalizeKey(key);
-        setSortKey(nk);
-        setSortOrder(order);
-        lastSorterRef.current = { columnKey: nk, order };
+
+        if (order) {
+          // 有明确的排序方向
+          setSortKey(nk);
+          setSortOrder(order);
+          lastSorterRef.current = { columnKey: nk, order };
+        } else {
+          // order 为 undefined，说明用户要清除排序（第三次点击）
+          // 清空排序状态
+          setSortKey('');
+          setSortOrder('descend');
+          lastSorterRef.current = null;
+        }
         // 不强制 reload，交由 ProTable 内部触发 request
       }}
       request={async (params, sorter) => {
@@ -404,18 +469,34 @@ export default function SitesPage() {
           if (foundKey && foundOrder) return { key: String(foundKey), order: foundOrder, had: true };
           return { key: 'pv', order: 'descend', had: false };
         };
-        // 优先使用受控状态（sortKey/sortOrder）
-        const preferred = lastSorterRef.current ?? sorter;
-        const parsed = parseSorter(preferred);
-        const rawKeyServer = sortKey || parsed.key;
-        const sortOrderServer = (sortOrder as any) || parsed.order;
-        const hadSorter = Boolean(sortKey && sortOrder) || parsed.had;
+        // 优先使用受控状态（lastSorterRef.current 是最新的用户交互）
+        // 如果 lastSorterRef.current 显式被设置为 null，说明用户清除了排序
+        let hadSorter = false;
+        let rawKeyServer = '';
+        let sortOrderServer: 'ascend' | 'descend' = 'descend';
+
+        if (lastSorterRef.current) {
+          // 有明确的排序记录
+          rawKeyServer = lastSorterRef.current.columnKey;
+          sortOrderServer = lastSorterRef.current.order;
+          hadSorter = true;
+        } else if (sortKey) {
+          // 使用状态中的值（初始状态或其他来源）
+          rawKeyServer = sortKey;
+          sortOrderServer = (sortOrder as any) || 'descend';
+          hadSorter = true;
+        } else {
+          // 无排序，使用默认值
+          hadSorter = false;
+        }
         const normalizeKey = (k: string) => {
           const s = (k || '').toLowerCase();
+          if (!s) return ''; // 空值返回空
           if (s === 'pv' || s.includes('totalpv')) return 'pv';
           if (s === 'uv' || s.includes('totaluv')) return 'uv';
           if (s === 'au' || s.includes('totalactiveusers')) return 'au';
           if (s === 'sessions' || s.includes('totalsessions')) return 'sessions';
+          if (s === 'bouncerate' || s.includes('bouncerate')) return 'bouncerate';
           if (s === 'clicks' || s.includes('totalclicks')) return 'clicks';
           if (s === 'impr' || s.includes('totalimpressions')) return 'impr';
           if (s === 'ctr' || s.includes('avgctr')) return 'ctr';
@@ -433,7 +514,7 @@ export default function SitesPage() {
         }
 
         // 批量加载指标（服务端排序，仅对指标类字段生效）
-        const metricKeys = new Set(['pv','uv','au','sessions','clicks','impr','ctr','avgpos','backlinks']);
+        const metricKeys = new Set(['pv','uv','au','sessions','avgsessionduration','bouncerate','clicks','impr','ctr','avgpos','backlinks']);
         const metricsRes: any = await client.get(`/sites/metrics`, {
           params: { page, pageSize, days }
         });
@@ -449,6 +530,12 @@ export default function SitesPage() {
               case 'uv': return m?.traffic?.totalUv ?? null;
               case 'au': return m?.traffic?.totalActiveUsers ?? null;
               case 'sessions': return m?.traffic?.totalSessions ?? null;
+              case 'avgsessionduration': return Number(m?.traffic?.avgSessionDuration ?? 0);
+              case 'bouncerate': {
+                const rate = Number(m?.traffic?.avgBounceRate ?? 0);
+                // 转换为百分比用于排序
+                return rate < 2 ? rate * 100 : rate;
+              }
               case 'clicks': return m?.gsc?.totalClicks ?? null;
               case 'impr': return m?.gsc?.totalImpressions ?? null;
               case 'ctr': return Number(m?.gsc?.avgCtr ?? 0);
