@@ -225,7 +225,7 @@ export default function BacklinksPage() {
     {
       title: '已提交',
       dataIndex: 'submissionCount',
-      width: 80,
+      width: 60,
       align: 'center' as const,
       hideInSearch: true,
       render: (_, record: BacklinkSite) => {
