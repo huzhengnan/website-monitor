@@ -134,7 +134,7 @@ export default function SitesPage() {
         },
         {
           key: 'avgSessionDuration',
-          title: '每次会话平均互动时长',
+          title: '时长',
           dataIndex: ['metrics', 'traffic', 'avgSessionDuration'],
           width: 60,
           sorter: true,
