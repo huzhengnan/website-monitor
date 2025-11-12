@@ -119,6 +119,7 @@ export async function GET(request: NextRequest) {
           events: true,
           bounceRate: true,
           averageSessionDuration: true,
+          metricsData: true,
           conversionRate: true,
         },
       }),
@@ -214,10 +215,14 @@ export async function GET(request: NextRequest) {
           ? trafficRecords.reduce((sum, item) => sum + (item.bounceRate?.toNumber() || 0), 0) /
             trafficRecords.length
           : 0;
+      // 从 GA 数据中直接获取平均会话时长，然后计算平均值
       const avgSessionDuration =
         trafficRecords.length > 0
-          ? trafficRecords.reduce((sum, item) => sum + (item.averageSessionDuration?.toNumber() || 0), 0) /
-            trafficRecords.length
+          ? trafficRecords.reduce((sum, item) => {
+              // 优先从 averageSessionDuration 字段获取（这是GA的真正平均会话时长）
+              const duration = item.averageSessionDuration?.toNumber() || 0;
+              return sum + duration;
+            }, 0) / trafficRecords.length
           : 0;
       const conversionRate =
         trafficRecords.length > 0

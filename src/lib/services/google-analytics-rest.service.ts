@@ -24,6 +24,7 @@ export interface GAMetricsResponse {
   sessions: number;
   bounceRate: number;
   avgSessionDuration: number;
+  userEngagementDuration?: number;
   conversionRate?: number;
   date: string;
   activeUsers?: number;
@@ -190,6 +191,7 @@ export class GoogleAnalyticsRestClient {
             { name: 'userEngagementDuration' },
             { name: 'newUsers' },
             { name: 'eventCount' },
+            { name: 'averageSessionDuration' },
           ],
           dimensions: [{ name: 'date' }],
           orderBys: [
@@ -215,9 +217,10 @@ export class GoogleAnalyticsRestClient {
             sessions: parseInt(row.metricValues[1].value, 10) || 0,
             pv: parseInt(row.metricValues[2].value, 10) || 0,
             bounceRate: parseFloat(row.metricValues[3].value) || 0,
-            avgSessionDuration: parseFloat(row.metricValues[4].value) || 0,
+            userEngagementDuration: parseFloat(row.metricValues[4].value) || 0,
             newUsers: parseInt(row.metricValues[5].value, 10) || 0,
             events: parseInt(row.metricValues[6].value, 10) || 0,
+            avgSessionDuration: parseFloat(row.metricValues[7].value) || 0,
             uv: parseInt(row.metricValues[5].value, 10) || 0, // Map newUsers to uv
           });
         }
