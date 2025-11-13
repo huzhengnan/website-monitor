@@ -238,7 +238,7 @@ export async function GET(
       if (totalClicks < 100) {
         reasons.seo = `搜索点击量较低(${totalClicks}次)，曝光量${totalImpressions}次，外链${totalBacklinks}个(已收录${indexedBacklinks}个)，平均排名${avgPosition.toFixed(1)}`;
       } else if (totalClicks < 10000) {
-        reasons.seo = `搜索点击量适中(${totalClicks}次)，曝光量${totalImpressions}次，外链${totalBacklinks}个(已收录${indexedBacklinks}个)，CTR ${(avgCtr * 100).toFixed(2)}%`;
+        reasons.seo = `搜索点击量适中(${totalClicks}次)，曝光量${totalImpressions}次，外链${totalBacklinks}个(已收录${indexedBacklinks}个)，CTR ${avgCtr.toFixed(2)}%`;
       } else {
         reasons.seo = `搜索点击量较高(${totalClicks}次)，曝光量${totalImpressions}次，外链${totalBacklinks}个(已收录${indexedBacklinks}个)，SEO表现良好`;
       }
@@ -286,18 +286,22 @@ export async function GET(
       }
 
       // SEO建议
-      if (totalBacklinks < 10) {
-        suggestions.seo = '外链数量较少，建议增加外链提交，提升网站权重和SEO表现';
+      if (totalBacklinks === 0) {
+        suggestions.seo = '尚无外链，建议开始提交外链到目录站和导航站，提升网站权重';
+      } else if (totalBacklinks > 0 && indexedBacklinks === 0) {
+        suggestions.seo = '外链尚未被收录，建议提高外链质量，选择权重更高的平台';
+      } else if (indexedBacklinks < totalBacklinks * 0.5) {
+        suggestions.seo = `外链收录率较低(${Math.round(indexedBacklinks/totalBacklinks*100)}%)，建议提高外链质量，选择权重更高的平台`;
+      } else if (totalBacklinks < 10) {
+        suggestions.seo = `已有${totalBacklinks}个外链，建议继续增加外链提交，提升网站权重`;
       } else if (totalClicks < 100) {
         suggestions.seo = '搜索点击量较低，建议优化关键词策略和外链质量，提升页面SEO评分';
       } else if (avgPosition > 20) {
         suggestions.seo = '搜索排名较低，建议优化标题和描述，继续增加高质量外链';
-      } else if (avgCtr < 0.05) {
-        suggestions.seo = 'CTR较低，建议优化搜索结果片段，使标题和描述更吸引人';
-      } else if (indexedBacklinks < totalBacklinks * 0.5) {
-        suggestions.seo = '外链收录率较低，建议提高外链质量，选择权重更高的平台';
+      } else if (avgCtr < 5) {
+        suggestions.seo = `CTR较低(${avgCtr.toFixed(2)}%)，建议优化搜索结果片段，使标题和描述更吸引人`;
       } else {
-        suggestions.seo = 'SEO表现良好，建议持续优化长尾关键词，保持外链增长';
+        suggestions.seo = `外链表现良好(${totalBacklinks}个外链，${indexedBacklinks}个已收录)，建议持续优化长尾关键词`;
       }
 
       // 市场建议
