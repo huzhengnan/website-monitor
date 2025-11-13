@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import Link from 'next/link';
 import type { ActionType, ProColumns } from '@ant-design/pro-components';
 import { ProTable } from '@ant-design/pro-components';
 import { Button, Tag, Segmented, Space, Typography, message, Tooltip } from 'antd';
 import { listSites, Site, deleteSite } from '@/api/sites';
+import ResizableHeaderCell from '@/components/ResizableHeaderCell';
 import client from '@/api/client';
 
 type Days = 1 | 2 | 7 | 30;
@@ -20,6 +21,19 @@ export default function SitesPage() {
   // 受控排序状态，消除列持久化导致的排序不可切换问题
   const [sortKey, setSortKey] = useState<string>('pv');
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend'>('descend');
+  const [columnWidths, setColumnWidths] = useState<Record<string, number>>(() => {
+    try {
+      const s = localStorage.getItem('sites-columns-widths');
+      return s ? JSON.parse(s) : {};
+    } catch {
+      return {};
+    }
+  });
+  useEffect(() => {
+    try {
+      localStorage.setItem('sites-columns-widths', JSON.stringify(columnWidths));
+    } catch {}
+  }, [columnWidths]);
 
   const columns: ProColumns<Site & { metrics?: any }>[] = [
     {
@@ -33,10 +47,11 @@ export default function SitesPage() {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      width: 140,
+      width: columnWidths['name'] ?? 140,
       ellipsis: true,
       sorter: true,
-      sortDirections: ['descend', 'ascend'],
+      sortDirections: ['ascend', 'descend'],
+      onHeaderCell: () => ({ width: columnWidths['name'] ?? 140, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['name']: Math.round(w) })) }),
       render: (_, r) => <Link href={`/sites/${r.id}`}>{r.name}</Link>,
     },
     { title: 'ID', dataIndex: 'id', key: 'id', width: 160, copyable: true, ellipsis: true, hideInTable: true },
@@ -44,17 +59,18 @@ export default function SitesPage() {
       title: '域名',
       dataIndex: 'domain',
       key: 'domain',
-      width: 240,
+      width: columnWidths['domain'] ?? 240,
       copyable: true,
       ellipsis: true,
       sorter: true,
-      sortDirections: ['descend', 'ascend'],
+      sortDirections: ['ascend', 'descend'],
       hideInTable: true,
+      onHeaderCell: () => ({ width: columnWidths['domain'] ?? 240, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['domain']: Math.round(w) })) }),
     },
     {
       title: '状态',
       dataIndex: 'status',
-      width: 120,
+      width: columnWidths['status'] ?? 120,
       valueType: 'select',
       valueEnum: {
         online: { text: '在线' },
@@ -62,6 +78,7 @@ export default function SitesPage() {
         offline: { text: '离线' },
       },
       hideInTable: true,
+      onHeaderCell: () => ({ width: columnWidths['status'] ?? 120, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['status']: Math.round(w) })) }),
       render: (_, r) => {
         const status = r.status;
         const map: any = {
@@ -85,6 +102,33 @@ export default function SitesPage() {
       render: (_, r) => r.platform || '-',
     },
     {
+      title: '综合评分',
+      key: 'score',
+      dataIndex: ['metrics', 'evaluation', 'composite'],
+      width: columnWidths['score'] ?? 90,
+      sorter: true,
+      sortDirections: ['ascend', 'descend'],
+      onHeaderCell: () => ({ width: columnWidths['score'] ?? 90, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['score']: Math.round(w) })) }),
+      render: (_, r) => {
+        const ev = r.metrics?.evaluation;
+        const val = ev?.composite;
+        const content = (
+          <div style={{ fontSize: 12 }}>
+            <div>市场：{ev?.market ?? '-'}</div>
+            <div>质量：{ev?.quality ?? '-'}</div>
+            <div>SEO：{ev?.seo ?? '-'}</div>
+            <div>流量：{ev?.traffic ?? '-'}</div>
+            <div>营收：{ev?.revenue ?? '-'}</div>
+          </div>
+        );
+        return (
+          <Tooltip title={content}>
+            <span>{val == null ? '-' : Math.round(Number(val))}</span>
+          </Tooltip>
+        );
+      },
+    },
+    {
       title: () => (<Tag color="geekblue">GA</Tag>),
       onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
       children: [
@@ -92,10 +136,10 @@ export default function SitesPage() {
           key: 'pv',
           title: 'PV',
           dataIndex: ['metrics', 'traffic', 'totalPv'],
-          width: 60,
+          width: columnWidths['pv'] ?? 60,
           sorter: true,
-          sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          sortDirections: ['ascend', 'descend'],
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20', width: columnWidths['pv'] ?? 60, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['pv']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => r.metrics?.traffic?.totalPv ?? '-',
         },
@@ -103,10 +147,10 @@ export default function SitesPage() {
           key: 'uv',
           title: 'UV',
           dataIndex: ['metrics', 'traffic', 'totalUv'],
-          width: 50,
+          width: columnWidths['uv'] ?? 50,
           sorter: true,
-          sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          sortDirections: ['ascend', 'descend'],
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20', width: columnWidths['uv'] ?? 50, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['uv']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => r.metrics?.traffic?.totalUv ?? '-',
         },
@@ -114,10 +158,10 @@ export default function SitesPage() {
           key: 'au',
           title: 'AU',
           dataIndex: ['metrics', 'traffic', 'totalActiveUsers'],
-          width: 50,
+          width: columnWidths['au'] ?? 50,
           sorter: true,
-          sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          sortDirections: ['ascend', 'descend'],
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20', width: columnWidths['au'] ?? 50, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['au']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => r.metrics?.traffic?.totalActiveUsers ?? '-',
         },
@@ -125,10 +169,10 @@ export default function SitesPage() {
           key: 'sessions',
           title: 'Sessions',
           dataIndex: ['metrics', 'traffic', 'totalSessions'],
-          width: 60,
+          width: columnWidths['sessions'] ?? 60,
           sorter: true,
-          sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          sortDirections: ['ascend', 'descend'],
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20', width: columnWidths['sessions'] ?? 60, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['sessions']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => r.metrics?.traffic?.totalSessions ?? '-',
         },
@@ -136,10 +180,10 @@ export default function SitesPage() {
           key: 'avgSessionDuration',
           title: '时长',
           dataIndex: ['metrics', 'traffic', 'avgSessionDuration'],
-          width: 60,
+          width: columnWidths['avgSessionDuration'] ?? 60,
           sorter: true,
-          sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          sortDirections: ['ascend', 'descend'],
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20', width: columnWidths['avgSessionDuration'] ?? 60, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['avgSessionDuration']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => {
             const duration = r.metrics?.traffic?.avgSessionDuration;
@@ -181,10 +225,10 @@ export default function SitesPage() {
             </Tooltip>
           ),
           dataIndex: ['metrics', 'traffic', 'avgBounceRate'],
-          width: 60,
+          width: columnWidths['bounceRate'] ?? 60,
           sorter: true,
-          sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20' }),
+          sortDirections: ['ascend', 'descend'],
+          onHeaderCell: () => ({ className: 'bg-indigo-100 dark:bg-indigo-900/20', width: columnWidths['bounceRate'] ?? 60, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['bounceRate']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-indigo-50 dark:bg-indigo-900/10' }),
           render: (_, r) => {
             const bounceRate = r.metrics?.traffic?.avgBounceRate;
@@ -205,10 +249,10 @@ export default function SitesPage() {
           key: 'clicks',
           title: 'Clicks',
           dataIndex: ['metrics', 'gsc', 'totalClicks'],
-          width: 50,
+          width: columnWidths['clicks'] ?? 50,
           sorter: true,
-          sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          sortDirections: ['ascend', 'descend'],
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20', width: columnWidths['clicks'] ?? 50, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['clicks']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => r.metrics?.gsc?.totalClicks ?? '-',
         },
@@ -216,10 +260,10 @@ export default function SitesPage() {
           key: 'impr',
           title: 'Impr',
           dataIndex: ['metrics', 'gsc', 'totalImpressions'],
-          width: 60,
+          width: columnWidths['impr'] ?? 60,
           sorter: true,
-          sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          sortDirections: ['ascend', 'descend'],
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20', width: columnWidths['impr'] ?? 60, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['impr']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => r.metrics?.gsc?.totalImpressions ?? '-',
         },
@@ -227,10 +271,10 @@ export default function SitesPage() {
           key: 'ctr',
           title: 'CTR',
           dataIndex: ['metrics', 'gsc', 'avgCtr'],
-          width: 50,
+          width: columnWidths['ctr'] ?? 50,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20', width: columnWidths['ctr'] ?? 50, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['ctr']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => (r.metrics?.gsc?.avgCtr ?? '-') as any,
         },
@@ -238,10 +282,10 @@ export default function SitesPage() {
           key: 'avgpos',
           title: 'AvgPos',
           dataIndex: ['metrics', 'gsc', 'avgPosition'],
-          width: 50,
+          width: columnWidths['avgpos'] ?? 50,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20', width: columnWidths['avgpos'] ?? 50, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['avgpos']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => (r.metrics?.gsc?.avgPosition ?? '-') as any,
         },
@@ -249,10 +293,10 @@ export default function SitesPage() {
           key: 'backlinks',
           title: '外链数量',
           dataIndex: ['metrics', 'backlinksCount'],
-          width: 40,
+          width: columnWidths['backlinks'] ?? 40,
           sorter: true,
           sortDirections: ['descend', 'ascend'],
-          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20' }),
+          onHeaderCell: () => ({ className: 'bg-amber-100 dark:bg-amber-900/20', width: columnWidths['backlinks'] ?? 40, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['backlinks']: Math.round(w) })) }),
           onCell: () => ({ className: 'bg-amber-50 dark:bg-amber-900/10' }),
           render: (_, r) => (
             <Link href={`/sites/${r.id}?tab=backlinks`} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 font-medium">
@@ -267,14 +311,16 @@ export default function SitesPage() {
       dataIndex: 'createdAt',
       key: 'createdAt',
       valueType: 'date',
-      width: 140,
+      width: columnWidths['createdAt'] ?? 140,
       sorter: true,
-      sortDirections: ['descend', 'ascend'],
+      sortDirections: ['ascend', 'descend'],
+      onHeaderCell: () => ({ width: columnWidths['createdAt'] ?? 140, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['createdAt']: Math.round(w) })) }),
     },
     {
       title: '操作',
       valueType: 'option',
-      width: 140,
+      width: columnWidths['option'] ?? 140,
+      onHeaderCell: () => ({ width: columnWidths['option'] ?? 140, onResize: (w: number) => setColumnWidths((p) => ({ ...p, ['option']: Math.round(w) })) }),
       render: (_, r) => [
         <Link key="open" href={`/sites/${r.id}`}>详情</Link>,
         <a
@@ -307,6 +353,7 @@ export default function SitesPage() {
       sticky
       columnEmptyText="-"
       rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
+      components={{ header: { cell: ResizableHeaderCell } }}
       options={{ setting: { draggable: true }, reload: true, density: true, fullScreen: true }}
       tableAlertRender={({ selectedRowKeys }) => (
         <Space>
@@ -395,6 +442,7 @@ export default function SitesPage() {
           if (s === 'ctr' || s.includes('avgctr')) return 'ctr';
           if (s === 'avgpos' || s.includes('avgposition')) return 'avgpos';
           if (s === 'backlinks' || s.includes('backlink')) return 'backlinks';
+          if (s === 'score' || s.includes('composite')) return 'score';
           if (s === 'createdat' || s === 'created_at') return 'createdat';
           return s || 'pv';
         };
@@ -502,6 +550,7 @@ export default function SitesPage() {
           if (s === 'ctr' || s.includes('avgctr')) return 'ctr';
           if (s === 'avgpos' || s.includes('avgposition')) return 'avgpos';
           if (s === 'backlinks' || s.includes('backlink')) return 'backlinks';
+          if (s === 'score' || s.includes('composite')) return 'score';
           if (s === 'createdat' || s === 'created_at') return 'createdat';
           return s; // name/domain/createdat 等
         };
@@ -514,7 +563,7 @@ export default function SitesPage() {
         }
 
         // 批量加载指标（服务端排序，仅对指标类字段生效）
-        const metricKeys = new Set(['pv','uv','au','sessions','avgsessionduration','bouncerate','clicks','impr','ctr','avgpos','backlinks']);
+        const metricKeys = new Set(['pv','uv','au','sessions','avgsessionduration','bouncerate','clicks','impr','ctr','avgpos','backlinks','score']);
         const metricsRes: any = await client.get(`/sites/metrics`, {
           params: { page, pageSize, days }
         });
@@ -541,6 +590,7 @@ export default function SitesPage() {
               case 'ctr': return Number(m?.gsc?.avgCtr ?? 0);
               case 'avgpos': return Number(m?.gsc?.avgPosition ?? 0);
               case 'backlinks': return Number(m?.backlinksCount ?? 0);
+              case 'score': return Number(m?.evaluation?.composite ?? 0);
               default: return null;
             }
           };

@@ -150,6 +150,7 @@ export default function BacklinksPage() {
       hideInSearch: true,
       sorter: true,
       defaultSortOrder: 'descend',
+      sortDirections: ['ascend', 'descend'],
       render: (_, r) => {
         const score = r.importanceScore || 0;
         const level = getImportanceLevel(score);

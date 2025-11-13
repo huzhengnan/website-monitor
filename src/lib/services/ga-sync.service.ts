@@ -6,6 +6,7 @@ import {
 } from './google-analytics-rest.service';
 import { updateSyncStatus } from './connector.service';
 import { getTrafficData, createTrafficData, updateTrafficData } from './traffic.service';
+import { updateSiteEvaluation } from './evaluation.service';
 
 
 /**
@@ -156,6 +157,10 @@ export async function syncGoogleAnalytics(
 
     // 更新同步状态
     await updateSyncStatus(connectorId, 'active');
+
+    // 同步完成后更新网站评分
+    console.log(`[GA Sync] Updating evaluation for site ${connector.site!.id}...`);
+    await updateSiteEvaluation(connector.site!.id);
 
     return {
       success: true,
@@ -340,6 +345,10 @@ export async function syncGADateRange(
 
     // 更新同步状态
     await updateSyncStatus(connectorId, 'active');
+
+    // 同步完成后更新网站评分
+    console.log(`[GA Sync] Updating evaluation for site ${connector.site!.id}...`);
+    await updateSiteEvaluation(connector.site!.id);
 
     return {
       success: true,

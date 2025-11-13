@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
     const end = new Date(endDate + 'T23:59:59Z');
 
     // Fetch all traffic and GSC data for all sites in parallel
-    const [allTrafficData, allGscData, allSources, allBacklinkSubmissions] = await Promise.all([
+    const [allTrafficData, allGscData, allSources, allBacklinkSubmissions, latestEvaluations] = await Promise.all([
       prisma.trafficData.findMany({
         where: {
           siteId: { in: siteIds },
@@ -159,6 +159,20 @@ export async function GET(request: NextRequest) {
         },
         _count: {
           id: true,
+        },
+      }),
+      prisma.evaluation.findMany({
+        where: { siteId: { in: siteIds } },
+        orderBy: [{ siteId: 'asc' }, { date: 'desc' }],
+        select: {
+          siteId: true,
+          date: true,
+          marketScore: true,
+          qualityScore: true,
+          seoScore: true,
+          trafficScore: true,
+          revenueScore: true,
+          overallScore: true,
         },
       }),
     ]);
@@ -287,6 +301,93 @@ export async function GET(request: NextRequest) {
       metrics.backlinksCount = backlinkCountBySite.get(siteId) || 0; // actual backlink submissions count
     }
 
+    const latestBySite = new Map<string, any>();
+    for (const ev of latestEvaluations) {
+      if (!latestBySite.has(ev.siteId)) {
+        latestBySite.set(ev.siteId, ev);
+      }
+    }
+    for (const siteId of siteIds) {
+      const ev = latestBySite.get(siteId);
+      const metrics = metricsMap.get(siteId)!;
+      metrics.evaluation = ev
+        ? {
+            market: ev.marketScore ?? null,
+            quality: ev.qualityScore ?? null,
+            seo: ev.seoScore ?? null,
+            traffic: ev.trafficScore ?? null,
+            revenue: ev.revenueScore ?? null,
+            composite: ev.overallScore ? Number(ev.overallScore) : null,
+            date: ev.date,
+          }
+        : metrics.evaluation;
+    }
+
+    for (const siteId of siteIds) {
+      const m = metricsMap.get(siteId)!;
+      const pv = Number(m?.traffic?.totalPv ?? 0);
+      const uv = Number(m?.traffic?.totalUv ?? 0);
+      const sessions = Number(m?.traffic?.totalSessions ?? 0);
+      const au = Number(m?.traffic?.totalActiveUsers ?? 0);
+      const newUsers = Number(m?.traffic?.totalNewUsers ?? 0);
+      const events = Number(m?.traffic?.totalEvents ?? 0);
+      const bounceRate = Number(m?.traffic?.avgBounceRate ?? 0);
+      const avgSessionDuration = Number(m?.traffic?.avgSessionDuration ?? 0);
+      const conversionRate = Number(m?.traffic?.conversionRate ?? 0);
+      const clicks = Number(m?.gsc?.totalClicks ?? 0);
+      const impr = Number(m?.gsc?.totalImpressions ?? 0);
+      const ctr = Number(m?.gsc?.avgCtr ?? 0);
+      const avgPos = Number(m?.gsc?.avgPosition ?? 100);
+
+      const norm = (v: number, max: number) => Math.max(0, Math.min(100, (v / max) * 100));
+      const inv = (v: number) => Math.max(0, Math.min(100, 100 - v));
+      const posScore = Math.max(0, Math.min(100, 100 - ((avgPos / 100) * 100)));
+
+      const trafficScore = Math.round(
+        norm(pv, 1_000_000) * 0.35 +
+        norm(sessions, 500_000) * 0.25 +
+        norm(au, 500_000) * 0.2 +
+        norm(avgSessionDuration, 300) * 0.2
+      );
+
+      const qualityScore = Math.round(
+        norm(avgSessionDuration, 300) * 0.5 +
+        inv(Math.min(100, bounceRate)) * 0.5
+      );
+
+      const seoScore = Math.round(
+        norm(clicks, 50_000) * 0.4 +
+        norm(impr, 2_000_000) * 0.2 +
+        Math.max(0, Math.min(100, ctr)) * 0.2 +
+        posScore * 0.2
+      );
+
+      const marketScore = Math.round(
+        norm(newUsers, 100_000) * 0.6 +
+        norm(events, 1_000_000) * 0.4
+      );
+
+      const revenueScore = Math.round(
+        Math.max(0, Math.min(100, conversionRate))
+      );
+
+      const composite = Math.round(
+        (trafficScore + qualityScore + seoScore + marketScore + revenueScore) / 5
+      );
+
+      m.evaluation = m.evaluation && m.evaluation.composite != null
+        ? m.evaluation
+        : {
+            market: marketScore,
+            quality: qualityScore,
+            seo: seoScore,
+            traffic: trafficScore,
+            revenue: revenueScore,
+            composite,
+            date: null,
+          };
+    }
+
     // Convert map to object for response
     const metricsData: Record<string, any> = {};
     for (const [siteId, metrics] of metricsMap.entries()) {
@@ -294,7 +395,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Optional server-side order by sortField
-    const sortableKeys = new Set(['pv','uv','au','sessions','clicks','impr','ctr','avgpos','backlinks']);
+    const sortableKeys = new Set(['pv','uv','au','sessions','clicks','impr','ctr','avgpos','backlinks','score']);
     let order: string[] | undefined = undefined;
     if (sortFieldParam && sortableKeys.has(sortFieldParam)) {
       const getVal = (siteId: string) => {
@@ -310,6 +411,7 @@ export async function GET(request: NextRequest) {
           case 'ctr': return Number(m.gsc?.avgCtr ?? 0);
           case 'avgpos': return Number(m.gsc?.avgPosition ?? 0);
           case 'backlinks': return Number(m.backlinksCount ?? 0);
+          case 'score': return Number(m.evaluation?.composite ?? 0) || null;
           default: return null;
         }
       };

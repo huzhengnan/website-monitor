@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Globe, Calendar, Search, Link2 } from 'lucide-react';
+import { ArrowLeft, Globe, Calendar, Search, Link2, Gauge } from 'lucide-react';
+import RadarChart from '@/components/RadarChart';
 import { getSiteById, Site } from '@/api/sites';
 import { BacklinksManager } from '@/components/BacklinksManager';
 
@@ -18,9 +19,13 @@ export default function SiteDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchData, setSearchData] = useState<any>(null);
   const [searchLoading, setSearchLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'backlinks'>(() => {
+  const [scoreData, setScoreData] = useState<any>(null);
+  const [scoreLoading, setScoreLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'scores' | 'backlinks'>(() => {
     const tab = searchParams?.get('tab');
-    return tab === 'backlinks' ? 'backlinks' : 'overview';
+    if (tab === 'backlinks') return 'backlinks';
+    if (tab === 'scores') return 'scores';
+    return 'overview';
   });
 
   useEffect(() => {
@@ -69,6 +74,29 @@ export default function SiteDetailPage() {
 
     loadSearchData();
   }, [site?.domain]);
+
+  // Load evaluation scores
+  useEffect(() => {
+    const loadScores = async () => {
+      if (!site?.id) return;
+      try {
+        setScoreLoading(true);
+        const response = await fetch(`/api/sites/${site.id}/metrics?days=30`);
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setScoreData(result.data?.evaluation || null);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load evaluation scores:', err);
+      } finally {
+        setScoreLoading(false);
+      }
+    };
+
+    loadScores();
+  }, [site?.id]);
 
   if (loading) {
     return (
@@ -124,6 +152,17 @@ export default function SiteDetailPage() {
           }`}
         >
           概览
+        </button>
+        <button
+          onClick={() => setActiveTab('scores')}
+          className={`px-4 py-3 font-medium text-sm transition border-b-2 flex items-center gap-2 ${
+            activeTab === 'scores'
+              ? 'border-indigo-600 text-indigo-600'
+              : 'border-transparent text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Gauge className="w-4 h-4" />
+          五维评分
         </button>
         <button
           onClick={() => setActiveTab('backlinks')}
@@ -365,6 +404,70 @@ export default function SiteDetailPage() {
           </div>
         </div>
       </div>
+      ) : activeTab === 'scores' ? (
+        <div className="space-y-6">
+          <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
+            <div className="flex items-center gap-2 mb-4">
+              <Gauge className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <h2 className="text-lg font-semibold text-foreground">五维评分</h2>
+              <div className="ml-auto">
+                <Link href={`/sites/${site.id}/evaluations`} className="text-indigo-600 hover:text-indigo-700 text-sm">查看评分记录</Link>
+              </div>
+            </div>
+
+            {scoreLoading ? (
+              <div className="text-muted-foreground">加载中...</div>
+            ) : scoreData ? (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <RadarChart data={{
+                    composite: Number(scoreData.composite || 0),
+                    market: Number(scoreData.market || 0),
+                    quality: Number(scoreData.quality || 0),
+                    seo: Number(scoreData.seo || 0),
+                    traffic: Number(scoreData.traffic || 0),
+                    revenue: Number(scoreData.revenue || 0),
+                  }} height={380} />
+                </div>
+                <div className="space-y-3">
+                  <div className="p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg">
+                    <div className="text-sm text-indigo-600 font-medium">综合评分</div>
+                    <div className="text-3xl font-bold text-indigo-900 mt-2">{Math.round(Number(scoreData.composite || 0))}</div>
+                  </div>
+                  {[
+                    { label: '市场', key: 'market', color: 'text-blue-600' },
+                    { label: '质量', key: 'quality', color: 'text-emerald-600' },
+                    { label: 'SEO', key: 'seo', color: 'text-amber-600' },
+                    { label: '流量', key: 'traffic', color: 'text-purple-600' },
+                    { label: '营收', key: 'revenue', color: 'text-pink-600' },
+                  ].map((item) => (
+                    <div key={item.key} className="p-3 bg-muted/30 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm text-muted-foreground">{item.label}</div>
+                        <div className={`text-lg font-semibold ${item.color}`}>{Math.round(Number(scoreData[item.key] || 0))}</div>
+                      </div>
+                      <div className="mt-2 h-2 bg-muted rounded">
+                        <div className="h-2 bg-indigo-500 rounded" style={{ width: `${Math.max(0, Math.min(100, Number(scoreData[item.key] || 0)))}%` }} />
+                      </div>
+                      {scoreData.reasons?.[item.key] && (
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          <span className="font-medium">原因：</span>{scoreData.reasons[item.key]}
+                        </div>
+                      )}
+                      {scoreData.suggestions?.[item.key] && (
+                        <div className="mt-1 text-xs text-blue-600">
+                          <span className="font-medium">建议：</span>{scoreData.suggestions[item.key]}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="text-muted-foreground">暂无评分数据</div>
+            )}
+          </div>
+        </div>
       ) : (
         <div className="bg-card text-card-foreground rounded-lg shadow-sm p-6 border border-border">
           <BacklinksManager siteId={id} />

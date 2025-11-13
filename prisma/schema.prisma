@@ -261,6 +261,8 @@ model Evaluation {
   overallScore   Decimal?  @map("overall_score") @db.Decimal(5, 2)
   evaluator      String?   @db.VarChar(255)
   notes          String?
+  reasons        Json?     @db.JsonB  // 各维度评分原因
+  suggestions    Json?     @db.JsonB  // 优化建议
   weights        Json?     @db.JsonB
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")

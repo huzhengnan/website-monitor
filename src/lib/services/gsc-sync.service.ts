@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { getSearchConsoleRestService } from './google-search-console-rest.service';
+import { updateSiteEvaluation } from './evaluation.service';
 
 /**
  * Sync GSC data for a specific site and date range
@@ -68,6 +69,10 @@ export async function syncGSCDataForSite(
     }
 
     console.log(`[GSC Sync] ✓ Successfully synced ${syncedDays} days of GSC data for site ${siteId}`);
+
+    // 同步完成后更新网站评分
+    console.log(`[GSC Sync] Updating evaluation for site ${siteId}...`);
+    await updateSiteEvaluation(siteId);
 
     return { success: true, syncedDays };
   } catch (error: any) {
